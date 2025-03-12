@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../auth/login_page.dart';
+import 'downloadables.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({Key? key}) : super(key: key);
@@ -51,7 +52,12 @@ class ProfileTab extends StatelessWidget {
             const SizedBox(height: 15),
 
             // Menu Items
-            _buildMenuItem(Icons.book, "Student Materials", () {}),
+            _buildMenuItem(Icons.book, "Student Materials", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DownloadablesPage()),
+              );
+            }),
             _buildMenuItem(Icons.warning, "Ragging Causes", () {}),
             _buildMenuItem(Icons.warning, "Ragging Causes", () {}),
             _buildMenuItem(Icons.warning, "Ragging Causes", () {}),
