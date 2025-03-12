@@ -82,7 +82,7 @@ class LoginPage extends StatelessWidget {
                       ),
                       SizedBox(height: 24),
 
-                      // Login Button
+                      // Login Button added
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
