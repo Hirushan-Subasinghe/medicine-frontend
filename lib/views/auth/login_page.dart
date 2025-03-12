@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medicine/views/auth/signup_page.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
 
@@ -113,6 +114,12 @@ class LoginPage extends StatelessWidget {
                       child: GestureDetector(
                         onTap: () {
                           // Navigate to Register Page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => StudentSignupPage(),
+                            ),
+                          );
                         },
                         child: Text.rich(
                           TextSpan(
