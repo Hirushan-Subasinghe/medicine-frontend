@@ -12,7 +12,9 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  // final AuthController authController = AuthController();
+  final AuthController authController = AuthController();
+
+  bool isLoading = false; // ✅ Loading indicator
 
   @override
   Widget build(BuildContext context) {
@@ -38,19 +40,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
               SizedBox(height: 30),
 
-              // Centered Image - Enlarged with bottom margin
-              Center(
-                child: Container(
-                  margin: EdgeInsets.only(bottom: 24), // Added bottom margin
-                  child: Image.asset(
-                    'assets/images/login-hero.png', // Ensure the asset exists
-                    height: 300, // Larger size
-                    width: 300,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-
               // Login Form
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -61,13 +50,8 @@ class _LoginPageState extends State<LoginPage> {
                       controller: emailController,
                       decoration: InputDecoration(
                         labelText: "Student email",
-                        prefixIcon: Icon(
-                          Icons.email,
-                          color: AppColors.primaryColor,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     SizedBox(height: 16),
@@ -78,62 +62,61 @@ class _LoginPageState extends State<LoginPage> {
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: "Password",
-                        prefixIcon: Icon(
-                          Icons.lock,
-                          color: AppColors.primaryColor,
-                        ),
-                        suffixIcon: TextButton(
-                          onPressed: () {
-                            // Navigate to Forgot Password Page
-                          },
-                          child: Text(
-                            "Forgot?",
-                            style: TextStyle(color: AppColors.primaryColor),
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     SizedBox(height: 24),
 
                     // Login Button
-                    // SizedBox(
-                    //   width: double.infinity,
-                    //   child: ElevatedButton(
-                    //     // onPressed: () async {
-                    //     //   await authController.login(
-                    //     //     emailController.text.trim(),
-                    //     //     passwordController.text.trim(),
-                    //     //   );
-                    //     //   Navigator.pushReplacement(
-                    //     //     context,
-                    //     //     MaterialPageRoute(builder: (context) => MainMenu()),
-                    //     //   );
-                    //     // },
-                    //     style: ElevatedButton.styleFrom(
-                    //       backgroundColor: AppColors.primaryColor,
-                    //       shape: RoundedRectangleBorder(
-                    //         borderRadius: BorderRadius.circular(10),
-                    //       ),
-                    //       padding: EdgeInsets.symmetric(vertical: 14),
-                    //     ),
-                    //     child: Text("Login", style: AppTextStyles.button),
-                    //   ),
-                    // ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          setState(() {
+                            isLoading = true;
+                          });
+
+                          String email = emailController.text.trim();
+                          String password = passwordController.text.trim();
+                          String? loginResult = await authController.login(email, password);
+
+                          setState(() {
+                            isLoading = false;
+                          });
+
+                          if (loginResult == "success") {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => MainMenu()),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(loginResult ?? "Login failed")),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: isLoading
+                            ? CircularProgressIndicator(color: Colors.white) // ✅ Show loading
+                            : Text("Login", style: AppTextStyles.button),
+                      ),
+                    ),
                     SizedBox(height: 24),
 
                     // Register Navigation
                     Center(
                       child: GestureDetector(
                         onTap: () {
-                          // Navigate to Register Page
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => StudentSignupPage(),
-                            ),
+                            MaterialPageRoute(builder: (context) => StudentSignupPage()),
                           );
                         },
                         child: Text.rich(
