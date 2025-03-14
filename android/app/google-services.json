@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "614707861504",
+    "project_id": "freshers-connect-d5e86",
+    "storage_bucket": "freshers-connect-d5e86.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:614707861504:android:fb79224e09df1417c660e5",
+        "android_client_info": {
+          "package_name": "com.example.medicine"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Dy6NSaCcHbXTqHyr-E3p8us6Tkm4nNM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
