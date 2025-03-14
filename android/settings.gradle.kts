@@ -14,11 +14,21 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    // Force Android plugins to use AGP 8.6.0
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id.startsWith("com.android")) {
+                useVersion("8.6.0")
+            }
+        }
+    }
 }
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.7.0" apply false
+    // Downgraded AGP version from 8.7.0 to 8.6.0
+    id("com.android.application") version "8.6.0" apply false
     id("org.jetbrains.kotlin.android") version "1.8.22" apply false
 }
 

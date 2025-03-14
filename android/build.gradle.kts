@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Explicitly set the AGP version to 8.6.0
+        classpath("com.android.tools.build:gradle:8.6.0")
+    }
+}
+
+
+
 allprojects {
     repositories {
         google()

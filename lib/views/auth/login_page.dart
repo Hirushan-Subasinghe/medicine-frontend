@@ -2,8 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:medicine/views/auth/signup_page.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
+import '../../controllers/auth_controller.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  // final AuthController authController = AuthController();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,6 +58,7 @@ class LoginPage extends StatelessWidget {
                   children: [
                     // Email Field
                     TextField(
+                      controller: emailController,
                       decoration: InputDecoration(
                         labelText: "Student email",
                         prefixIcon: Icon(
@@ -63,6 +74,7 @@ class LoginPage extends StatelessWidget {
 
                     // Password Field
                     TextField(
+                      controller: passwordController,
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: "Password",
@@ -87,26 +99,29 @@ class LoginPage extends StatelessWidget {
                     SizedBox(height: 24),
 
                     // Login Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Handle Login
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => MainMenu()),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: Text("Login", style: AppTextStyles.button),
-                      ),
-                    ),
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   child: ElevatedButton(
+                    //     // onPressed: () async {
+                    //     //   await authController.login(
+                    //     //     emailController.text.trim(),
+                    //     //     passwordController.text.trim(),
+                    //     //   );
+                    //     //   Navigator.pushReplacement(
+                    //     //     context,
+                    //     //     MaterialPageRoute(builder: (context) => MainMenu()),
+                    //     //   );
+                    //     // },
+                    //     style: ElevatedButton.styleFrom(
+                    //       backgroundColor: AppColors.primaryColor,
+                    //       shape: RoundedRectangleBorder(
+                    //         borderRadius: BorderRadius.circular(10),
+                    //       ),
+                    //       padding: EdgeInsets.symmetric(vertical: 14),
+                    //     ),
+                    //     child: Text("Login", style: AppTextStyles.button),
+                    //   ),
+                    // ),
                     SizedBox(height: 24),
 
                     // Register Navigation
