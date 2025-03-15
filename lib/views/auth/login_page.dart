@@ -16,8 +16,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
   final AuthController authController = AuthController();
 
-  bool isLoading = false; // ✅ Show loading indicator
-  String errorMessage = ""; // ✅ Store error messages
+  bool isLoading = false;
+  String errorMessage = "";
 
   Future<void> loginUser() async {
     setState(() {
@@ -25,7 +25,30 @@ class _LoginPageState extends State<LoginPage> {
       isLoading = true;
     });
 
-    // ✅ Check Internet Connection
+    if (emailController.text.trim().isEmpty && passwordController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "Email and password fields cannot be empty.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    if (emailController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "The email field cannot be empty.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    if (passwordController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "The password field cannot be empty.";
+        isLoading = false;
+      });
+      return;
+    }
+
     var connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
       setState(() {
@@ -114,9 +137,7 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: "Password",
                         prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
                         suffixIcon: TextButton(
-                          onPressed: () {
-                            // Forgot Password Logic
-                          },
+                          onPressed: () {},
                           child: Text(
                             "Forgot?",
                             style: TextStyle(color: AppColors.primaryColor),
@@ -129,7 +150,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 16),
 
-                    // ✅ Show Error Message in Red
                     if (errorMessage.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -142,50 +162,16 @@ class _LoginPageState extends State<LoginPage> {
 
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : loginUser,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: isLoading
-                            ? CircularProgressIndicator(color: Colors.white)
-                            : Text("Login", style: AppTextStyles.button),
+                      child: AppButtons.primaryButton(
+                        text: isLoading ? "Logging in..." : "Login",
+                        onPressed: isLoading
+                            ? () {} // ✅ Empty function to prevent null error
+                            : () {
+                          loginUser();
+                        },
                       ),
                     ),
                     SizedBox(height: 24),
-
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StudentSignupPage(),
-                            ),
-                          );
-                        },
-                        child: Text.rich(
-                          TextSpan(
-                            text: "New to the app? ",
-                            style: AppTextStyles.body,
-                            children: [
-                              TextSpan(
-                                text: "Register",
-                                style: TextStyle(
-                                  color: AppColors.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 30),
                   ],
                 ),
               ),

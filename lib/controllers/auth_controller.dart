@@ -9,6 +9,15 @@ class AuthController {
   /// 🔹 **User Login Function**
   Future<String?> login(String email, String password) async {
     try {
+      // ✅ Check if fields are empty before making API request
+      if (email.isEmpty && password.isEmpty) {
+        return "Email and password fields cannot be empty.";
+      } else if (email.isEmpty) {
+        return "The email field cannot be empty.";
+      } else if (password.isEmpty) {
+        return "The password field cannot be empty.";
+      }
+
       print("🚀 Attempting Firebase login...");
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -22,7 +31,7 @@ class AuthController {
 
       // ✅ Sending request to Firebase Auth REST API
       final response = await http.post(
-        Uri.parse("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=YOUR_FIREBASE_API_KEY"),
+        Uri.parse("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyAHOOMTWLjC7N_K2j0Nffwmf2s7J7Sfy-M"),
         headers: {
           "Content-Type": "application/json",
         },
@@ -65,14 +74,14 @@ class AuthController {
     switch (errorCode) {
       case "INVALID_LOGIN_CREDENTIALS":
       case "wrong-password":
-        return "Email and password do not match. Please check your credentials.";
+        return "The password you entered is incorrect. Please try again.";
       case "EMAIL_NOT_FOUND":
       case "user-not-found":
         return "No account found with this email. Please register first.";
       case "invalid-email":
-        return "Invalid email format. Please check and try again.";
+        return "Invalid email format. Please enter a valid email address.";
       case "too-many-requests":
-        return "Too many failed attempts. Try again later.";
+        return "Too many failed login attempts. Try again later.";
       case "NETWORK_REQUEST_FAILED":
         return "Network error. Please check your connection.";
       case "WEAK_PASSWORD":
@@ -82,7 +91,7 @@ class AuthController {
       case "OPERATION_NOT_ALLOWED":
         return "This operation is not allowed. Please contact support.";
       default:
-        return "Login failed. Please check your details and try again.";
+        return "Login failed. Please check your credentials and try again.";
     }
   }
 
