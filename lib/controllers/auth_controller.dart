@@ -18,12 +18,12 @@ class AuthController {
 
       // Send token to backend for verification
       final response = await http.post(
-        Uri.parse("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyAHOOMTWLjC7N_K2j0Nffwmf2s7J7Sfy-M"),
-        headers: {
-          "Content-Type": "application/json",
+          Uri.parse("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyAHOOMTWLjC7N_K2j0Nffwmf2s7J7Sfy-M"),
+          headers: {
+            "Content-Type": "application/json",
 
-        },
-        body: jsonEncode({"email": email, "password": password, "returnSecureToken": true})
+          },
+          body: jsonEncode({"email": email, "password": password, "returnSecureToken": true})
       );
 
       print("Response Status: ${response.statusCode}");
