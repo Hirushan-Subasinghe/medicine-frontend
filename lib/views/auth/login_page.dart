@@ -29,7 +29,7 @@ class _LoginPageState extends State<LoginPage> {
     var connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
       setState(() {
-        errorMessage = "No internet connection. Please try again.";
+        errorMessage = "No internet connection. Please check and try again.";
         isLoading = false;
       });
       return;
@@ -51,25 +51,8 @@ class _LoginPageState extends State<LoginPage> {
       );
     } else {
       setState(() {
-        errorMessage = _getErrorMessage(result);
+        errorMessage = result ?? "Login failed. Please try again.";
       });
-    }
-  }
-
-  // ✅ Function to Convert Firebase Errors into User-Friendly Messages
-  String _getErrorMessage(String? error) {
-    if (error == null) return "Login failed. Please try again.";
-
-    if (error.contains("INVALID_LOGIN_CREDENTIALS")) {
-      return "Incorrect email or password. Please try again.";
-    } else if (error.contains("user-not-found")) {
-      return "No user found with this email.";
-    } else if (error.contains("wrong-password")) {
-      return "Incorrect password. Please try again.";
-    } else if (error.contains("too-many-requests")) {
-      return "Too many attempts. Try again later.";
-    } else {
-      return "Login failed. Please try again.";
     }
   }
 
