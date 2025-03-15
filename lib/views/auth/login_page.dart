@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:medicine/views/auth/signup_page.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
+import '../../controllers/auth_controller.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -12,45 +14,68 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  String errorMessage = ""; // ✅ Store error message
+  final AuthController authController = AuthController();
+
+  bool isLoading = false;
+  String errorMessage = "";
 
   Future<void> loginUser() async {
     setState(() {
-      errorMessage = ""; // ✅ Clear previous errors before attempting login
+      errorMessage = "";
+      isLoading = true;
     });
 
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-      // ✅ If login is successful, navigate to the main menu
+    if (emailController.text.trim().isEmpty && passwordController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "Email and password fields cannot be empty.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    if (emailController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "The email field cannot be empty.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    if (passwordController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = "The password field cannot be empty.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      setState(() {
+        errorMessage = "No internet connection. Please check and try again.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    String? result = await authController.login(
+      emailController.text.trim(),
+      passwordController.text.trim(),
+    );
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (result == "success") {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => MainMenu()),
       );
-    } on FirebaseAuthException catch (e) {
+    } else {
       setState(() {
-        errorMessage = getErrorMessage(e.code); // ✅ Get user-friendly error message
+        errorMessage = result ?? "Login failed. Please try again.";
       });
-    }
-  }
-
-  // ✅ Function to convert Firebase error codes into user-friendly messages
-  String getErrorMessage(String errorCode) {
-    switch (errorCode) {
-      case "invalid-email":
-        return "Invalid email format.";
-      case "user-disabled":
-        return "This user has been disabled.";
-      case "user-not-found":
-        return "No user found with this email.";
-      case "wrong-password":
-        return "Incorrect password. Please try again.";
-      case "too-many-requests":
-        return "Too many attempts. Try again later.";
-      default:
-        return "Login failed. Please try again.";
     }
   }
 
@@ -112,9 +137,7 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: "Password",
                         prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
                         suffixIcon: TextButton(
-                          onPressed: () {
-                            // Forgot Password Logic
-                          },
+                          onPressed: () {},
                           child: Text(
                             "Forgot?",
                             style: TextStyle(color: AppColors.primaryColor),
@@ -127,7 +150,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 16),
 
-                    // ✅ Show error message in red if there's any
                     if (errorMessage.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -140,48 +162,16 @@ class _LoginPageState extends State<LoginPage> {
 
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: loginUser,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: Text("Login", style: AppTextStyles.button),
+                      child: AppButtons.primaryButton(
+                        text: isLoading ? "Logging in..." : "Login",
+                        onPressed: isLoading
+                            ? () {} // ✅ Empty function to prevent null error
+                            : () {
+                          loginUser();
+                        },
                       ),
                     ),
                     SizedBox(height: 24),
-
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StudentSignupPage(),
-                            ),
-                          );
-                        },
-                        child: Text.rich(
-                          TextSpan(
-                            text: "New to the app? ",
-                            style: AppTextStyles.body,
-                            children: [
-                              TextSpan(
-                                text: "Register",
-                                style: TextStyle(
-                                  color: AppColors.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 30),
                   ],
                 ),
               ),
