@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../controllers/auth_controller.dart';
+import 'login_page.dart';
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -7,14 +9,89 @@ class StudentSignupPage extends StatefulWidget {
 }
 
 class _StudentSignupPageState extends State<StudentSignupPage> {
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController studentNumberController = TextEditingController();
+  final TextEditingController departmentController = TextEditingController();
+  final TextEditingController facultyController = TextEditingController();
+  final TextEditingController phoneNoController = TextEditingController();
+
   String? selectedLevel;
-  final List<String> levels = [
-    "Level 1",
-    "Level 2",
-    "Level 3",
-    "Level 4",
-    "Level 5",
-  ];
+  final List<String> levels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"];
+  String errorMessage = "";
+  bool isLoading = false;
+  final AuthController authController = AuthController();
+
+  Future<void> signupUser() async {
+    setState(() {
+      errorMessage = "";
+      isLoading = true;
+    });
+
+    if (firstNameController.text.trim().isEmpty ||
+        lastNameController.text.trim().isEmpty ||
+        emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty ||
+        studentNumberController.text.trim().isEmpty ||
+        departmentController.text.trim().isEmpty ||
+        facultyController.text.trim().isEmpty ||
+        phoneNoController.text.trim().isEmpty ||
+        selectedLevel == null) {
+      setState(() {
+        errorMessage = "All fields are required.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    String? result = await authController.signup(
+      firstNameController.text.trim(),
+      lastNameController.text.trim(),
+      emailController.text.trim(),
+      passwordController.text.trim(),
+      studentNumberController.text.trim(),
+      selectedLevel!,
+      departmentController.text.trim(),
+      facultyController.text.trim(),
+      phoneNoController.text.trim(),
+    );
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (result == "success") {
+      showSuccessDialog();
+    } else {
+      setState(() {
+        errorMessage = result ?? "Signup failed. Please try again.";
+      });
+    }
+  }
+
+  void showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Success"),
+        content: Text("Your account has been created successfully."),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => LoginPage()), // Navigate to login
+              );
+            },
+            child: Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +102,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
           children: [
             Icon(Icons.person_add, color: Colors.white),
             SizedBox(width: 8),
-            Text(
-              "Student Signup",
-              style: TextStyle(color: Colors.white, fontSize: 25),
-            ),
+            Text("Student Signup", style: TextStyle(color: Colors.white, fontSize: 25)),
           ],
         ),
         backgroundColor: AppColors.primaryColor,
@@ -51,28 +125,11 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               ),
               SizedBox(height: 24),
 
-              // First Name Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "First Name",
-                  prefixIcon: Icon(Icons.person, color: Colors.black),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("First Name", Icons.person, firstNameController),
               SizedBox(height: 16),
-
-              // Email Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("Last Name", Icons.person, lastNameController),
+              SizedBox(height: 16),
+              buildTextField("Email", Icons.email, emailController),
               SizedBox(height: 16),
 
               // Level Dropdown
@@ -80,15 +137,12 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 decoration: InputDecoration(
                   labelText: "Level",
                   prefixIcon: Icon(Icons.school, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedLevel,
-                items:
-                    levels.map((level) {
-                      return DropdownMenuItem(value: level, child: Text(level));
-                    }).toList(),
+                items: levels.map((level) {
+                  return DropdownMenuItem(value: level, child: Text(level));
+                }).toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedLevel = value;
@@ -97,68 +151,51 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               ),
               SizedBox(height: 16),
 
-              // Contact Number Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "Contact Number",
-                  prefixIcon: Icon(Icons.phone, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
+              buildTextField("Student Number", Icons.badge, studentNumberController),
               SizedBox(height: 16),
-
-              // University ID Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "University ID",
-                  prefixIcon: Icon(Icons.badge, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("Department", Icons.business, departmentController),
               SizedBox(height: 16),
-
-              // Password Field
-              TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("Faculty", Icons.school, facultyController),
+              SizedBox(height: 16),
+              buildTextField("Phone Number", Icons.phone, phoneNoController, isPhone: true),
+              SizedBox(height: 16),
+              buildTextField("Password", Icons.lock, passwordController, isPassword: true),
               SizedBox(height: 24),
 
-              // Signup Button
+              if (errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    errorMessage,
+                    style: TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Handle Signup
-                  },
+                  onPressed: isLoading ? null : signupUser,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     padding: EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text("Sign Up", style: AppTextStyles.button),
+                  child: isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text("Sign Up", style: AppTextStyles.button),
                 ),
               ),
               SizedBox(height: 24),
 
-              // Login Navigation
+              // Already have an account? Login
               Center(
                 child: GestureDetector(
                   onTap: () {
-                    // Navigate to Login Page
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
                   },
                   child: Text.rich(
                     TextSpan(
@@ -181,6 +218,20 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget buildTextField(String label, IconData icon, TextEditingController controller,
+      {bool isPassword = false, bool isPhone = false}) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword,
+      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.primaryColor),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

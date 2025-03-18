@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
-import 'dart:io'; // Import for handling network errors
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class AuthController {
@@ -9,13 +9,8 @@ class AuthController {
   /// 🔹 **User Login Function**
   Future<String?> login(String email, String password) async {
     try {
-      // ✅ Check if fields are empty before making API request
-      if (email.isEmpty && password.isEmpty) {
+      if (email.isEmpty || password.isEmpty) {
         return "Email and password fields cannot be empty.";
-      } else if (email.isEmpty) {
-        return "The email field cannot be empty.";
-      } else if (password.isEmpty) {
-        return "The password field cannot be empty.";
       }
 
       print("🚀 Attempting Firebase login...");
@@ -29,17 +24,10 @@ class AuthController {
       String? idToken = await userCredential.user?.getIdToken();
       print("🔑 Firebase ID Token: $idToken");
 
-      // ✅ Sending request to Firebase Auth REST API
       final response = await http.post(
         Uri.parse("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyAHOOMTWLjC7N_K2j0Nffwmf2s7J7Sfy-M"),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "email": email,
-          "password": password,
-          "returnSecureToken": true
-        }),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "password": password, "returnSecureToken": true}),
       );
 
       print("📡 Response Status: ${response.statusCode}");
@@ -49,17 +37,15 @@ class AuthController {
         print("🎉 Login Successful!");
         return "success";
       } else {
-        // ✅ Extract Firebase error message properly
         Map<String, dynamic> responseBody = jsonDecode(response.body);
         String? errorCode = responseBody["error"]?["message"];
-
         print("❌ Login failed: $errorCode");
 
-        return getFirebaseErrorMessage(errorCode ?? "UNKNOWN_ERROR");
+        return getFirebaseErrorMessage(errorCode ?? "UNKNOWN_ERROR"); // ✅ Fixed
       }
     } on FirebaseAuthException catch (e) {
       print("❌ FirebaseAuthException: ${e.code}");
-      return getFirebaseErrorMessage(e.code);
+      return getFirebaseErrorMessage(e.code); // ✅ Fixed
     } on SocketException {
       print("❌ No internet connection.");
       return "No internet connection. Please check your network and try again.";
@@ -69,8 +55,86 @@ class AuthController {
     }
   }
 
-  /// 🔥 Converts Firebase error codes into user-friendly messages
-  String getFirebaseErrorMessage(String errorCode) {
+  /// 🔹 **User Signup Function**
+  Future<String?> signup(
+      String firstName,
+      String lastName,
+      String email,
+      String password,
+      String studentNumber,
+      String level,
+      String department,
+      String faculty,
+      String phoneNo) async {
+    try {
+      if (firstName.isEmpty ||
+          lastName.isEmpty ||
+          email.isEmpty ||
+          password.isEmpty ||
+          studentNumber.isEmpty ||
+          level.isEmpty ||
+          department.isEmpty ||
+          faculty.isEmpty ||
+          phoneNo.isEmpty) {
+        return "All fields are required.";
+      }
+
+      print("🚀 Creating Firebase user...");
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user == null) {
+        print("❌ Firebase user creation failed!");
+        return "Firebase signup failed. Please try again.";
+      }
+
+      print("✅ Firebase user created: ${userCredential.user?.uid}");
+      String uid = userCredential.user!.uid;
+
+      print("📡 Sending user data to backend...");
+
+      final response = await http.post(
+        Uri.parse("http://localhost:5000/api/auth/signup"), // Update with your backend URL
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "firebase_uid": uid,
+          "firstName": firstName,
+          "lastName": lastName,
+          "email": email,
+          "studentNumber": studentNumber,
+          "level": level,
+          "department": department,
+          "faculty": faculty,
+          "phoneNo": phoneNo,
+        }),
+      );
+
+      print("📜 Response Status: ${response.statusCode}");
+      print("📜 Response Body: ${response.body}");
+
+      if (response.statusCode == 201) {
+        print("🎉 Signup Successful! Navigating to login...");
+        return "success";
+      } else {
+        print("❌ Signup failed: ${response.body}");
+        return "Signup failed: ${response.body}";
+      }
+    } on FirebaseAuthException catch (e) {
+      print("❌ FirebaseAuthException: ${e.code}");
+      return getFirebaseErrorMessage(e.code); // ✅ Fixed
+    } on SocketException {
+      print("❌ No internet connection.");
+      return "No internet connection. Please check your network and try again.";
+    } catch (e) {
+      print("❌ General Error: $e");
+      return "An unexpected error occurred. Please try again later.";
+    }
+  }
+
+  /// 🔥 **Converts Firebase error codes into user-friendly messages**
+  String getFirebaseErrorMessage(String errorCode) { // ✅ Added this function
     switch (errorCode) {
       case "INVALID_LOGIN_CREDENTIALS":
       case "wrong-password":
@@ -95,6 +159,7 @@ class AuthController {
     }
   }
 
+  /// 🔹 **Logout Function**
   Future<void> logout() async {
     await _auth.signOut();
     print("✅ User logged out successfully.");
