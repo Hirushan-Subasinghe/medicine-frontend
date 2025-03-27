@@ -96,7 +96,7 @@ class AuthController {
       print("📡 Sending user data to backend...");
 
       final response = await http.post(
-        Uri.parse("http://localhost:5000/api/auth/signup"), // Update with your backend URL
+        Uri.parse("http://172.19.44.233/api/auth/signup"), // Update with your backend URL
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "firebase_uid": uid,

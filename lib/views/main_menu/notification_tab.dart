@@ -28,7 +28,7 @@ class _NotificationTabState extends State<NotificationTab>
       appBar: AppBar(
         title: Text(
           "Notifications",
-          style: TextStyle(color: Colors.white, fontSize: 30),
+          style: TextStyle(color: Colors.white, fontSize: 25),
         ),
         backgroundColor: AppColors.primaryColor,
         bottom: TabBar(
