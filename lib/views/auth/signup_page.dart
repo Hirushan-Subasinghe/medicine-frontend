@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
 import 'login_page.dart';
+import 'otp_verification_page.dart'; // << Add this
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -57,15 +58,18 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     }
   }
 
-  Future<void> signupUser() async {
+  Future<void> initiateSignupWithOtp() async {
     setState(() {
       errorMessage = "";
       isLoading = true;
     });
 
+    final email = emailController.text.trim();
+
+    // ✅ Check for empty fields
     if (firstNameController.text.trim().isEmpty ||
         lastNameController.text.trim().isEmpty ||
-        emailController.text.trim().isEmpty ||
+        email.isEmpty ||
         passwordController.text.trim().isEmpty ||
         studentNumberController.text.trim().isEmpty ||
         selectedDepartment == null ||
@@ -79,52 +83,51 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       return;
     }
 
-    String? result = await authController.signup(
-      firstNameController.text.trim(),
-      lastNameController.text.trim(),
-      emailController.text.trim(),
-      passwordController.text.trim(),
-      studentNumberController.text.trim(),
-      selectedLevel!,
-      selectedDepartment!,
-      selectedFaculty!,
-      phoneNoController.text.trim(),
-    );
+    // ✅ Enforce university email restriction
+    if (!email.endsWith('@stu.kln.ac.lk')) {
+      setState(() {
+        errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    // ✅ Send OTP
+    final otpResponse = await authController.sendOtp(email);
 
     setState(() {
       isLoading = false;
     });
 
-    if (result == "success") {
-      showSuccessDialog();
+    if (otpResponse['success']) {
+      final signupData = {
+        "firstName": firstNameController.text.trim(),
+        "lastName": lastNameController.text.trim(),
+        "email": email,
+        "password": passwordController.text.trim(),
+        "studentNumber": studentNumberController.text.trim(),
+        "studentLevel": selectedLevel!,
+        "department": selectedDepartment!,
+        "faculty": selectedFaculty!,
+        "phoneNo": phoneNoController.text.trim()
+      };
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OTPVerificationPage(
+            email: email,
+            signupData: signupData,
+          ),
+        ),
+      );
     } else {
       setState(() {
-        errorMessage = result ?? "Signup failed. Please try again.";
+        errorMessage = otpResponse['error'] ?? "Failed to send OTP.";
       });
     }
   }
 
-  void showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Success"),
-        content: Text("Your account has been created successfully."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
-            },
-            child: Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,11 +176,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 ),
                 value: selectedLevel,
                 items: levels.map((level) => DropdownMenuItem(value: level, child: Text(level))).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedLevel = value;
-                  });
-                },
+                onChanged: (value) => setState(() => selectedLevel = value),
               ),
               SizedBox(height: 16),
 
@@ -192,11 +191,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 ),
                 value: selectedDepartment,
                 items: departments.map((dep) => DropdownMenuItem(value: dep, child: Text(dep))).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedDepartment = value;
-                  });
-                },
+                onChanged: (value) => setState(() => selectedDepartment = value),
               ),
               SizedBox(height: 16),
 
@@ -208,11 +203,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 ),
                 value: selectedFaculty,
                 items: faculties.map((fac) => DropdownMenuItem(value: fac, child: Text(fac))).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedFaculty = value;
-                  });
-                },
+                onChanged: (value) => setState(() => selectedFaculty = value),
               ),
               SizedBox(height: 16),
 
@@ -234,7 +225,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: isLoading ? null : signupUser,
+                  onPressed: isLoading ? null : initiateSignupWithOtp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
