@@ -94,10 +94,19 @@ class AuthController {
 
       print("✅ Firebase user created: ${userCredential.user?.uid}");
 
+      // 🔑 Get Firebase ID Token (REQUIRED for backend)
+      String? idToken = await userCredential.user?.getIdToken();
+      if (idToken == null) {
+        print("❌ Failed to get Firebase ID token.");
+        return "Failed to get Firebase ID token.";
+      }
+
+      // 📡 Send user data + ID token to backend
       final response = await http.post(
-        Uri.parse("http://172.19.44.233:5000/api/auth/signup"),
+        Uri.parse("http://172.19.44.233:5000/api/auth/signup"), // Replace with your local IP or domain
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
+          "idToken": idToken,
           "firstName": firstName,
           "lastName": lastName,
           "email": email,
@@ -113,23 +122,24 @@ class AuthController {
       print("📜 Response Body: ${response.body}");
 
       if (response.statusCode == 201) {
-        print("🎉 Signup Successful! Navigating to login...");
+        print("🎉 Signup Successful!");
         return "success";
       } else {
-        print("❌ Signup failed: ${response.body}");
-        return "Signup failed: ${response.body}";
+        final Map<String, dynamic> body = jsonDecode(response.body);
+        return "Signup failed: ${body['error'] ?? 'Unknown error'}";
       }
     } on FirebaseAuthException catch (e) {
       print("❌ FirebaseAuthException: ${e.code}");
       return getFirebaseErrorMessage(e.code);
     } on SocketException {
       print("❌ No internet connection.");
-      return "No internet connection. Please check your network and try again.";
+      return "No internet connection. Please check your network.";
     } catch (e) {
       print("❌ General Error: $e");
-      return "An unexpected error occurred. Please try again later.";
+      return "An unexpected error occurred.";
     }
   }
+
 
   /// 🔥 Firebase Error Code Translator
   String getFirebaseErrorMessage(String errorCode) {
