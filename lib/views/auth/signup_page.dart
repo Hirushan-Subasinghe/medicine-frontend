@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
 import 'login_page.dart';
@@ -14,15 +16,46 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController studentNumberController = TextEditingController();
-  final TextEditingController departmentController = TextEditingController();
-  final TextEditingController facultyController = TextEditingController();
   final TextEditingController phoneNoController = TextEditingController();
 
   String? selectedLevel;
+  String? selectedDepartment;
+  String? selectedFaculty;
+
   final List<String> levels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"];
+  List<String> departments = [];
+  List<String> faculties = [];
+
   String errorMessage = "";
   bool isLoading = false;
   final AuthController authController = AuthController();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchDropdownData();
+  }
+
+  Future<void> fetchDropdownData() async {
+    try {
+      final depResponse = await http.get(Uri.parse("http://172.19.44.233:5000/api/common/departments"));
+      final facResponse = await http.get(Uri.parse("http://172.19.44.233:5000/api/common/faculties"));
+
+      if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
+        final List<dynamic> depData = jsonDecode(depResponse.body);
+        final List<dynamic> facData = jsonDecode(facResponse.body);
+
+        setState(() {
+          departments = depData.map((e) => e['deptName'].toString()).toList();
+          faculties = facData.map((e) => e['facultyName'].toString()).toList();
+        });
+      } else {
+        print("Failed to load dropdown data");
+      }
+    } catch (e) {
+      print("Error fetching dropdown data: $e");
+    }
+  }
 
   Future<void> signupUser() async {
     setState(() {
@@ -35,8 +68,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty ||
         studentNumberController.text.trim().isEmpty ||
-        departmentController.text.trim().isEmpty ||
-        facultyController.text.trim().isEmpty ||
+        selectedDepartment == null ||
+        selectedFaculty == null ||
         phoneNoController.text.trim().isEmpty ||
         selectedLevel == null) {
       setState(() {
@@ -53,8 +86,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       passwordController.text.trim(),
       studentNumberController.text.trim(),
       selectedLevel!,
-      departmentController.text.trim(),
-      facultyController.text.trim(),
+      selectedDepartment!,
+      selectedFaculty!,
       phoneNoController.text.trim(),
     );
 
@@ -80,10 +113,10 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => LoginPage()), // Navigate to login
+                MaterialPageRoute(builder: (context) => LoginPage()),
               );
             },
             child: Text("OK"),
@@ -132,7 +165,6 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               buildTextField("Email", Icons.email, emailController),
               SizedBox(height: 16),
 
-              // Level Dropdown
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: "Level",
@@ -140,9 +172,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedLevel,
-                items: levels.map((level) {
-                  return DropdownMenuItem(value: level, child: Text(level));
-                }).toList(),
+                items: levels.map((level) => DropdownMenuItem(value: level, child: Text(level))).toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedLevel = value;
@@ -153,10 +183,39 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
               buildTextField("Student Number", Icons.badge, studentNumberController),
               SizedBox(height: 16),
-              buildTextField("Department", Icons.business, departmentController),
+
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: "Department",
+                  prefixIcon: Icon(Icons.business, color: AppColors.primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                value: selectedDepartment,
+                items: departments.map((dep) => DropdownMenuItem(value: dep, child: Text(dep))).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedDepartment = value;
+                  });
+                },
+              ),
               SizedBox(height: 16),
-              buildTextField("Faculty", Icons.school, facultyController),
+
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: "Faculty",
+                  prefixIcon: Icon(Icons.school_outlined, color: AppColors.primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                value: selectedFaculty,
+                items: faculties.map((fac) => DropdownMenuItem(value: fac, child: Text(fac))).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedFaculty = value;
+                  });
+                },
+              ),
               SizedBox(height: 16),
+
               buildTextField("Phone Number", Icons.phone, phoneNoController, isPhone: true),
               SizedBox(height: 16),
               buildTextField("Password", Icons.lock, passwordController, isPassword: true),
@@ -188,7 +247,6 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               ),
               SizedBox(height: 24),
 
-              // Already have an account? Login
               Center(
                 child: GestureDetector(
                   onTap: () {
