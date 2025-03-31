@@ -109,65 +109,139 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
-        title: const Text('Verify OTP'),
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.backgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Enter the 6-digit OTP sent to',
-              style: AppTextStyles.body,
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              widget.email,
-              style: AppTextStyles.subheading,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: otpController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: "OTP",
-                prefixIcon: const Icon(Icons.lock),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+
+              // 🔹 Heading + Subheading
+              Center(
+                child: Column(
+                  children: [
+                    const Text("Verify your email", style: AppTextStyles.subheading),
+                    const SizedBox(height: 8),
+                    Text("OTP Verification", style: AppTextStyles.heading),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            if (errorMessage.isNotEmpty)
-              Text(
-                errorMessage,
-                style: const TextStyle(color: Colors.red),
-              ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : verifyOtp,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+
+              const SizedBox(height: 30),
+
+              // 🔹 Hero Image
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  child: Image.asset(
+                    'assets/images/login-hero.png',
+                    height: 300,
+                    width: 300,
+                    fit: BoxFit.contain,
                   ),
                 ),
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Verify", style: AppTextStyles.button),
               ),
-            ),
-          ],
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Enter the 6-digit OTP sent to your university email:',
+                      style: AppTextStyles.body,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.email,
+                      style: AppTextStyles.subheading,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 🔹 OTP Input
+                    TextField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Enter OTP",
+                        prefixIcon: const Icon(Icons.lock, color: AppColors.primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 🔹 Error Message
+                    if (errorMessage.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          errorMessage,
+                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+
+                    // 🔹 Verify Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: AppButtons.primaryButton(
+                        text: isLoading ? "Verifying..." : "Verify",
+                        onPressed: isLoading ? () {} : verifyOtp,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 🔁 Resend OTP
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                        final res = await authController.sendOtp(widget.email);
+                        if (!res['success']) {
+                          setState(() {
+                            errorMessage = res['error'] ?? "Failed to resend OTP.";
+                          });
+                        } else {
+                          setState(() {
+                            errorMessage = "OTP resent to your email.";
+                          });
+                        }
+                      },
+                      child: const Text(
+                        "Resend OTP",
+                        style: TextStyle(
+                          color: AppColors.primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
 }
