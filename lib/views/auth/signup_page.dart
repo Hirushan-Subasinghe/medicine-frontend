@@ -39,8 +39,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
   Future<void> fetchDropdownData() async {
     try {
-      final depResponse = await http.get(Uri.parse("http://172.19.44.233:5000/api/common/departments"));
-      final facResponse = await http.get(Uri.parse("http://172.19.44.233:5000/api/common/faculties"));
+      final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
+      final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
 
       if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
         final List<dynamic> depData = jsonDecode(depResponse.body);
@@ -50,6 +50,11 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
           departments = depData.map((e) => e['deptName'].toString()).toList();
           faculties = facData.map((e) => e['facultyName'].toString()).toList();
         });
+
+        //debug
+        print("Departments: $departments");
+        print("Faculties: $faculties");
+
       } else {
         print("Failed to load dropdown data");
       }
@@ -190,9 +195,32 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedDepartment,
-                items: departments.map((dep) => DropdownMenuItem(value: dep, child: Text(dep))).toList(),
-                onChanged: (value) => setState(() => selectedDepartment = value),
+                items: departments.isEmpty
+                    ? [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text("No departments available"),
+                  )
+                ]
+                    : departments.map((dep) {
+                  return DropdownMenuItem(
+                    value: dep,
+                    child: Text(dep),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedDepartment = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a department";
+                  }
+                  return null;
+                },
               ),
+
               SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
@@ -202,9 +230,32 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedFaculty,
-                items: faculties.map((fac) => DropdownMenuItem(value: fac, child: Text(fac))).toList(),
-                onChanged: (value) => setState(() => selectedFaculty = value),
+                items: faculties.isEmpty
+                    ? [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text("No faculties available"),
+                  )
+                ]
+                    : faculties.map((fac) {
+                  return DropdownMenuItem(
+                    value: fac,
+                    child: Text(fac),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedFaculty = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a faculty";
+                  }
+                  return null;
+                },
               ),
+
               SizedBox(height: 16),
 
               buildTextField("Phone Number", Icons.phone, phoneNoController, isPhone: true),
