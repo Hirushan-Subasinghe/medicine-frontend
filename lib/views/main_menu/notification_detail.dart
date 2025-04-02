@@ -12,8 +12,27 @@ class NotificationDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Notification Details'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text('Notification Details', style: TextStyle(color: Colors.white, fontSize: 20)),
         backgroundColor: AppColors.primaryColor,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: Colors.white),
+            onPressed: () {
+              // Keep existing delete functionality
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.more_vert, color: Colors.white),
+            onPressed: () {
+              // Keep existing more options functionality
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.0),
@@ -78,16 +97,15 @@ class NotificationDetailScreen extends StatelessWidget {
 
             SizedBox(height: 24),
 
-            // Tags/Status
+            // Tags/Status - Modified with rounded corners and theme color
             Wrap(
               spacing: 8,
               children: [
                 if (notification.isImportant)
-                  _buildTag('Important', Colors.amber),
+                  _buildTag('Important', AppColors.primaryColor),
                 if (notification.isSpam)
-                  _buildTag('Spam', Colors.red[300]!),
-                _buildTag(notification.isRead ? 'Read' : 'Unread',
-                    notification.isRead ? Colors.grey : AppColors.primaryColor),
+                  _buildTag('Spam', AppColors.primaryColor),
+                _buildTag(notification.isRead ? 'Read' : 'Unread', AppColors.primaryColor),
               ],
             ),
           ],
@@ -104,7 +122,11 @@ class NotificationDetailScreen extends StatelessWidget {
       ),
       backgroundColor: color,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: EdgeInsets.symmetric(horizontal: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: color),
+      ),
     );
   }
 

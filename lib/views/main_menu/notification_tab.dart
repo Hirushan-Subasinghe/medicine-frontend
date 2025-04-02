@@ -24,7 +24,6 @@ class _NotificationTabState extends State<NotificationTab>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadNotifications();
-
     _tabController.addListener(_handleTabChange);
   }
 
@@ -39,19 +38,27 @@ class _NotificationTabState extends State<NotificationTab>
       _isLoading = true;
     });
 
-    switch (tabIndex) {
-      case 0:
-        await _loadAllNotifications();
-        break;
-      case 1:
-        await _loadUnreadNotifications();
-        break;
-      case 2:
-        await _loadImportantNotifications();
-        break;
-      case 3:
-        await _loadSpamNotifications();
-        break;
+    try {
+      switch (tabIndex) {
+        case 0:
+          await _loadAllNotifications();
+          break;
+        case 1:
+          await _loadUnreadNotifications();
+          break;
+        case 2:
+          await _loadImportantNotifications();
+          break;
+        case 3:
+          await _loadSpamNotifications();
+          break;
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -145,7 +152,7 @@ class _NotificationTabState extends State<NotificationTab>
                       ),
                       child: Text(
                         _unreadNotifications.length.toString(),
-                        style: TextStyle(fontSize: 10),
+                        style: TextStyle(fontSize: 10, color: Colors.white),
                       ),
                     ),
                 ],
@@ -176,7 +183,9 @@ class _NotificationTabState extends State<NotificationTab>
     }
 
     return RefreshIndicator(
-      onRefresh: () => _loadTabData(_tabController.index),
+      onRefresh: () async {
+        await _loadTabData(_tabController.index);
+      },
       child: ListView.builder(
         padding: EdgeInsets.all(8),
         itemCount: notifications.length,

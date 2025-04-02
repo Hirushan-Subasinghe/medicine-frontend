@@ -33,7 +33,7 @@ class AuthController {
       print("🔑 Firebase ID Token: $idToken");
 
       final response = await http.post(
-        Uri.parse("http://10.236.189.117:5000/api/auth/login"),
+        Uri.parse("$baseUrl/api/auth/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"idToken": idToken}),
       );

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-const String baseUrl = "http://10.236.189.117:5000"; // or localhost IP
+const String baseUrl = "http://172.19.44.233:5000"; // or localhost IP
 
 class AppColors {
-  static const Color primaryColor = Color(0xFF640D5F); //  theme color
+  static const Color primaryColor = Color(0xFF211C84); //  theme color
   static const Color textColor = Color(0xFF202020); //  text color
   static const Color backgroundColor = Colors.white; // Background color
 }
