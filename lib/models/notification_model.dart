@@ -7,6 +7,7 @@ class NotificationModel {
   final bool isImportant;
   final bool isSpam;
   final String senderName; // Could be department or staff name
+  final String? senderProfileImageUrl;
 
   NotificationModel({
     required this.notificationId,
@@ -17,6 +18,7 @@ class NotificationModel {
     required this.isImportant,
     required this.isSpam,
     required this.senderName,
+    this.senderProfileImageUrl,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class NotificationModel {
       isImportant: json['isImportant'] ?? false,
       isSpam: json['isSpam'] ?? false,
       senderName: json['senderName'] ?? 'University Admin',
+      senderProfileImageUrl: json['senderProfileImageUrl'],
     );
   }
 }

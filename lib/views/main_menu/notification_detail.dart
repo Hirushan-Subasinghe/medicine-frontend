@@ -65,8 +65,10 @@ class NotificationDetailScreen extends StatelessWidget {
                             children: [
                               CircleAvatar(
                                 radius: 20,
-                                backgroundImage: AssetImage('assets/images/profile_placeholder.png'),
                                 backgroundColor: AppColors.primaryColor.withOpacity(0.2),
+                                backgroundImage: notification.senderProfileImageUrl != null
+                                    ? NetworkImage(notification.senderProfileImageUrl!)
+                                    : AssetImage('assets/images/profile_placeholder.png') as ImageProvider,
                               ),
                               SizedBox(width: 12),
                               Expanded(
