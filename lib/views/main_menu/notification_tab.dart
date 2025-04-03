@@ -206,7 +206,12 @@ class _NotificationTabState extends State<NotificationTab> {
           MaterialPageRoute(
             builder: (_) => NotificationDetailScreen(notification: notification),
           ),
-        ).then((_) => _loadTabData(_selectedTabIndex));
+        ).then((_) async {
+          // ✅ Reload both All and Unread lists after returning
+          await _loadAllNotifications();
+          await _loadUnreadNotifications();
+          setState(() {});
+        });
       },
       child: Container(
         decoration: BoxDecoration(
