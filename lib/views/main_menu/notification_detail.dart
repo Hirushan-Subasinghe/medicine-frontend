@@ -18,97 +18,145 @@ class NotificationDetailScreen extends StatelessWidget {
         ),
         title: Text('Notification Details', style: TextStyle(color: Colors.white, fontSize: 20)),
         backgroundColor: AppColors.primaryColor,
-        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.delete_outline, color: Colors.white),
             onPressed: () {
-              // Keep existing delete functionality
+              // Delete functionality
             },
           ),
           IconButton(
             icon: Icon(Icons.more_vert, color: Colors.white),
             onPressed: () {
-              // Keep existing more options functionality
+              // More options
             },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with sender info
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundImage: AssetImage('assets/images/profile_placeholder.png'),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        notification.senderName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      Text(
-                        _formatDate(notification.sentDateTime),
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
+      body: Container(
+        color: AppColors.primaryColor.withOpacity(0.05), // Light tint of theme color
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Main content card
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 5,
+                        offset: Offset(0, 2),
                       ),
                     ],
                   ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Sender info with avatar
+                        Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundImage: AssetImage('assets/images/profile_placeholder.png'),
+                                backgroundColor: AppColors.primaryColor.withOpacity(0.2),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      notification.senderName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      'To: you@mail.com',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (notification.isImportant)
+                                Icon(Icons.star, color: Colors.amber, size: 20),
+                            ],
+                          ),
+                        ),
+
+                        // Title
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            notification.title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Message content
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            notification.message,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ),
+
+                        // Add a link as shown in the image
+                        Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Meetup Place Here',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                if (notification.isImportant)
-                  Icon(Icons.star, color: Colors.amber),
-              ],
-            ),
-
-            Divider(height: 32),
-
-            // Title
-            Text(
-              notification.title,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
               ),
-            ),
 
-            SizedBox(height: 16),
-
-            // Message content
-            Text(
-              notification.message,
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.5,
+              // Tags at the bottom
+              Padding(
+                padding: EdgeInsets.only(top: 16.0),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    if (notification.isImportant)
+                      _buildTag('Important', AppColors.primaryColor),
+                    if (notification.isSpam)
+                      _buildTag('Spam', AppColors.primaryColor),
+                    _buildTag(notification.isRead ? 'Read' : 'Unread', AppColors.primaryColor),
+                  ],
+                ),
               ),
-            ),
-
-            SizedBox(height: 24),
-
-            // Tags/Status - Modified with rounded corners and theme color
-            Wrap(
-              spacing: 8,
-              children: [
-                if (notification.isImportant)
-                  _buildTag('Important', AppColors.primaryColor),
-                if (notification.isSpam)
-                  _buildTag('Spam', AppColors.primaryColor),
-                _buildTag(notification.isRead ? 'Read' : 'Unread', AppColors.primaryColor),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
