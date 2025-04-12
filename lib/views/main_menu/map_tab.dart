@@ -3,7 +3,6 @@ import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as latlng;
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import '../../controllers/map_controller.dart'; // Your custom MapController
 import '../../models/place_model.dart';
 import '../../services/map_service.dart'; // Provides fetchCoordinatesForAddress
@@ -24,10 +23,12 @@ class _MapTabState extends State<MapTab> {
   void initState() {
     super.initState();
     _determineUserLocation();
-    // Load custom places from backend after the widget builds.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final token = ''; // Retrieve your auth token if needed.
-      context.read<MapController>().loadPlaces(token);
+
+    // Load custom places from the backend after the widget builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Retrieve your token as needed. Replace the empty string if you have one.
+      final token = '';
+      await context.read<MapController>().loadPlaces(token);
     });
   }
 
@@ -37,6 +38,7 @@ class _MapTabState extends State<MapTab> {
     super.dispose();
   }
 
+  // Determine the user's current location via geolocator.
   Future<void> _determineUserLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -56,13 +58,17 @@ class _MapTabState extends State<MapTab> {
     });
   }
 
+  // Handles the search functionality: first, it looks for a match in the local list.
+  // If no custom place is found, it falls back to calling Nominatim for geocoding.
   Future<void> _handleSearch(String query) async {
     debugPrint("Searching for: '$query'");
+
     final mapCtrl = context.read<MapController>();
     final results = mapCtrl.searchPlaces(query);
+
     if (results.isNotEmpty) {
       final match = results.first;
-      debugPrint("Found match: ${match.name}");
+      debugPrint("Found local match: ${match.name}");
       flutterMapController.move(
         latlng.LatLng(match.latitude, match.longitude),
         18.0,
@@ -71,6 +77,7 @@ class _MapTabState extends State<MapTab> {
       debugPrint("No local match; attempting geocoding for '$query'");
       final location = await fetchCoordinatesForAddress(query);
       if (location != null) {
+        debugPrint("Nominatim found coordinates: ${location.latitude}, ${location.longitude}");
         flutterMapController.move(location, 18.0);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -80,10 +87,9 @@ class _MapTabState extends State<MapTab> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final mapCtrl = context.watch<MapController>(); // Your custom controller for state
+    final mapCtrl = context.watch<MapController>(); // Your custom controller for map state
     final List<Place> places = mapCtrl.places;
 
     return Scaffold(
@@ -105,7 +111,8 @@ class _MapTabState extends State<MapTab> {
     return fm.FlutterMap(
       mapController: flutterMapController,
       options: fm.MapOptions(
-        initialCenter: latlng.LatLng(7.028812, 79.926687), // Update if needed to focus on your campus area
+        // Set the initial center to your target campus location.
+        initialCenter: latlng.LatLng(7.028812, 79.926687),
         initialZoom: 16.0,
       ),
       children: [
@@ -115,7 +122,7 @@ class _MapTabState extends State<MapTab> {
         ),
         fm.MarkerLayer(
           markers: [
-            // Custom place markers fetched from the backend.
+            // Display markers for each custom place from the database.
             ...places.map((place) => fm.Marker(
               width: 80.0,
               height: 80.0,
@@ -131,7 +138,7 @@ class _MapTabState extends State<MapTab> {
                 ),
               ),
             )),
-            // User's location marker, if available.
+            // Show a marker for the user's location if available.
             if (_userLocation != null)
               fm.Marker(
                 width: 80.0,
@@ -163,10 +170,8 @@ class _MapTabState extends State<MapTab> {
             border: InputBorder.none,
             contentPadding: EdgeInsets.all(8),
           ),
-          onSubmitted: (query) {
-            _handleSearch(query);
-          },
-          // You can also use onChanged and debounce if desired.
+          onSubmitted: (query) => _handleSearch(query),
+          // Optionally, you may use onChanged with a debounce.
         ),
       ),
     );
