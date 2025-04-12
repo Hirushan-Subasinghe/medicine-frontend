@@ -19,15 +19,16 @@ class _MapTabState extends State<MapTab> {
   latlng.LatLng? _userLocation;
   final TextEditingController _searchController = TextEditingController();
 
+  // Initialize current zoom to the initial zoom value.
+  double _currentZoom = 16.0;
+
   @override
   void initState() {
     super.initState();
     _determineUserLocation();
-
-    // Load custom places from the backend after the widget builds.
+    // Load custom places from backend after the widget builds.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Retrieve your token as needed. Replace the empty string if you have one.
-      final token = '';
+      final token = ''; // Replace with a valid token if needed.
       await context.read<MapController>().loadPlaces(token);
     });
   }
@@ -38,18 +39,16 @@ class _MapTabState extends State<MapTab> {
     super.dispose();
   }
 
-  // Determine the user's current location via geolocator.
+  // Determine the user's current location.
   Future<void> _determineUserLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
-
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
     if (permission == LocationPermission.deniedForever) return;
-
     final position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -58,14 +57,11 @@ class _MapTabState extends State<MapTab> {
     });
   }
 
-  // Handles the search functionality: first, it looks for a match in the local list.
-  // If no custom place is found, it falls back to calling Nominatim for geocoding.
+  // Handle search: first check local places; if no match, fallback to Nominatim.
   Future<void> _handleSearch(String query) async {
     debugPrint("Searching for: '$query'");
-
     final mapCtrl = context.read<MapController>();
     final results = mapCtrl.searchPlaces(query);
-
     if (results.isNotEmpty) {
       final match = results.first;
       debugPrint("Found local match: ${match.name}");
@@ -89,9 +85,8 @@ class _MapTabState extends State<MapTab> {
 
   @override
   Widget build(BuildContext context) {
-    final mapCtrl = context.watch<MapController>(); // Your custom controller for map state
+    final mapCtrl = context.watch<MapController>(); // Custom MapController for state
     final List<Place> places = mapCtrl.places;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kelaniya Faculty of Medicine Map'),
@@ -108,46 +103,87 @@ class _MapTabState extends State<MapTab> {
   }
 
   Widget _buildMap(List<Place> places) {
+    // Inverse scaling formula: markerSize = constant / _currentZoom.
+    // Adjust the constant as needed for visual clarity; here we use 150.
+    double markerSize = 150 / _currentZoom;
+
     return fm.FlutterMap(
       mapController: flutterMapController,
       options: fm.MapOptions(
-        // Set the initial center to your target campus location.
-        initialCenter: latlng.LatLng(7.028812, 79.926687),
+        initialCenter: latlng.LatLng(7.028812, 79.926687), // Center on your campus area.
         initialZoom: 16.0,
+        onMapEvent: (event) {
+          if (event is fm.MapEventMoveEnd) {
+            final dynamic e = event; // Dynamic cast to access newZoom.
+            if (e.newZoom != null) {
+              setState(() {
+                _currentZoom = e.newZoom;
+              });
+            }
+          }
+        },
       ),
       children: [
         fm.TileLayer(
-          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c'],
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
         ),
         fm.MarkerLayer(
           markers: [
-            // Display markers for each custom place from the database.
+            // Custom places: display a label (full name) above a gray dot.
             ...places.map((place) => fm.Marker(
-              width: 80.0,
-              height: 80.0,
+              width: markerSize * 3, // Allow wider area for the label.
+              height: markerSize * 2, // Extra vertical space for the label.
               point: latlng.LatLng(place.latitude, place.longitude),
               child: GestureDetector(
                 onTap: () {
                   _showPlaceDetails(place);
                 },
-                child: const Icon(
-                  Icons.location_on,
-                  color: Colors.red,
-                  size: 40,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Text label container: allow full name display.
+                    Container(
+                      width: markerSize * 3,
+                      child: Text(
+                        place.name,
+                        style: TextStyle(
+                          fontSize: markerSize * 0.7, // Scale text size.
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                        softWrap: true,
+                      ),
+                    ),
+                    SizedBox(
+                      width: markerSize,
+                      height: markerSize,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.grey,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             )),
-            // Show a marker for the user's location if available.
+            // User location marker: displayed as a blue dot.
             if (_userLocation != null)
               fm.Marker(
-                width: 80.0,
-                height: 80.0,
+                width: markerSize,
+                height: markerSize,
                 point: _userLocation!,
-                child: const Icon(
-                  Icons.my_location,
-                  color: Colors.blue,
-                  size: 35,
+                child: SizedBox(
+                  width: markerSize,
+                  height: markerSize,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -171,7 +207,6 @@ class _MapTabState extends State<MapTab> {
             contentPadding: EdgeInsets.all(8),
           ),
           onSubmitted: (query) => _handleSearch(query),
-          // Optionally, you may use onChanged with a debounce.
         ),
       ),
     );
