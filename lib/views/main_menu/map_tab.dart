@@ -3,8 +3,10 @@ import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as latlng;
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../controllers/map_controller.dart';  // Your custom map controller
+import 'package:http/http.dart' as http;
+import '../../controllers/map_controller.dart'; // Your custom MapController
 import '../../models/place_model.dart';
+import '../../services/map_service.dart'; // Provides fetchCoordinatesForAddress
 
 class MapTab extends StatefulWidget {
   const MapTab({Key? key}) : super(key: key);
@@ -16,16 +18,23 @@ class MapTab extends StatefulWidget {
 class _MapTabState extends State<MapTab> {
   final fm.MapController flutterMapController = fm.MapController();
   latlng.LatLng? _userLocation;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _determineUserLocation();
-    // Load custom places from the backend after the widget builds.
+    // Load custom places from backend after the widget builds.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final token = ''; // Retrieve your auth token if needed.
       context.read<MapController>().loadPlaces(token);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _determineUserLocation() async {
@@ -47,9 +56,34 @@ class _MapTabState extends State<MapTab> {
     });
   }
 
+  Future<void> _handleSearch(String query) async {
+    debugPrint("Searching for: '$query'");
+    final mapCtrl = context.read<MapController>();
+    final results = mapCtrl.searchPlaces(query);
+    if (results.isNotEmpty) {
+      final match = results.first;
+      debugPrint("Found match: ${match.name}");
+      flutterMapController.move(
+        latlng.LatLng(match.latitude, match.longitude),
+        18.0,
+      );
+    } else {
+      debugPrint("No local match; attempting geocoding for '$query'");
+      final location = await fetchCoordinatesForAddress(query);
+      if (location != null) {
+        flutterMapController.move(location, 18.0);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No location found for '$query'")),
+        );
+      }
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    final mapCtrl = context.watch<MapController>(); // Your custom controller for map state
+    final mapCtrl = context.watch<MapController>(); // Your custom controller for state
     final List<Place> places = mapCtrl.places;
 
     return Scaffold(
@@ -59,7 +93,7 @@ class _MapTabState extends State<MapTab> {
       body: Stack(
         children: [
           _buildMap(places),
-          _buildSearchBar(mapCtrl),
+          _buildSearchBar(),
           if (mapCtrl.isLoading)
             const Center(child: CircularProgressIndicator()),
         ],
@@ -71,7 +105,7 @@ class _MapTabState extends State<MapTab> {
     return fm.FlutterMap(
       mapController: flutterMapController,
       options: fm.MapOptions(
-        initialCenter: latlng.LatLng(7.028812, 79.926687), // Approximate center for Faculty of Medicine
+        initialCenter: latlng.LatLng(7.028812, 79.926687), // Update if needed to focus on your campus area
         initialZoom: 16.0,
       ),
       children: [
@@ -81,7 +115,7 @@ class _MapTabState extends State<MapTab> {
         ),
         fm.MarkerLayer(
           markers: [
-            // Markers for each custom place fetched from the backend.
+            // Custom place markers fetched from the backend.
             ...places.map((place) => fm.Marker(
               width: 80.0,
               height: 80.0,
@@ -97,7 +131,7 @@ class _MapTabState extends State<MapTab> {
                 ),
               ),
             )),
-            // Marker for user location, if available.
+            // User's location marker, if available.
             if (_userLocation != null)
               fm.Marker(
                 width: 80.0,
@@ -115,29 +149,24 @@ class _MapTabState extends State<MapTab> {
     );
   }
 
-  Widget _buildSearchBar(MapController mapCtrl) {
+  Widget _buildSearchBar() {
     return Positioned(
       top: 16,
       left: 16,
       right: 16,
       child: Card(
         child: TextField(
+          controller: _searchController,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search),
             hintText: 'Search place...',
             border: InputBorder.none,
             contentPadding: EdgeInsets.all(8),
           ),
-          onChanged: (query) {
-            final results = mapCtrl.searchPlaces(query);
-            if (results.isNotEmpty) {
-              final match = results.first;
-              flutterMapController.move(
-                latlng.LatLng(match.latitude, match.longitude),
-                18.0,
-              );
-            }
+          onSubmitted: (query) {
+            _handleSearch(query);
           },
+          // You can also use onChanged and debounce if desired.
         ),
       ),
     );

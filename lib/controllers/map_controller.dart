@@ -19,6 +19,8 @@ class MapController with ChangeNotifier {
     notifyListeners();
     try {
       final fetchedPlaces = await _mapService.fetchPlaces(token);
+      // Debug print to verify correct data load
+      debugPrint('Fetched Places: ${fetchedPlaces.map((p) => p.name).toList()}');
       _places = fetchedPlaces;
     } catch (e) {
       debugPrint('Error fetching places: $e');
@@ -28,11 +30,11 @@ class MapController with ChangeNotifier {
     }
   }
 
-  // Simple search implementation
+  // Simple search implementation with trimming
   List<Place> searchPlaces(String query) {
-    return _places
-        .where((place) =>
-        place.name.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    final trimmedQuery = query.trim().toLowerCase();
+    return _places.where((place) {
+      return place.name.toLowerCase().contains(trimmedQuery);
+    }).toList();
   }
 }
