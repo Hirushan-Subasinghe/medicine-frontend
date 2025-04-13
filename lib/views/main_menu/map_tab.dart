@@ -42,9 +42,8 @@ class _MapTabState extends State<MapTab> {
   Timer? _debounce;
   bool _isLoadingSuggestions = false;
 
-  // Search result marker
-  latlng.LatLng? _searchResultLocation;
-  String? _searchResultName;
+  // Track selected place instead of search result
+  Place? _selectedPlace;
 
   // Reference bounds for search (around Kelaniya area)
   final double _searchLatMin = 6.9;
@@ -231,10 +230,17 @@ class _MapTabState extends State<MapTab> {
     _searchController.text = suggestion.name;
     flutterMapController.move(suggestion.location, 18.0);
 
-    // Add search result marker
+    // Find if this suggestion matches an existing place
+    final mapCtrl = context.read<MapController>();
+
+    // Use where and then check if any matches exist
+    final matchingPlaces = mapCtrl.places.where(
+            (place) => place.name == suggestion.name
+    ).toList();
+
+    // Set selected place (or null if not found)
     setState(() {
-      _searchResultLocation = suggestion.location;
-      _searchResultName = suggestion.name;
+      _selectedPlace = matchingPlaces.isNotEmpty ? matchingPlaces.first : null;
       _searchSuggestions = [];
     });
 
@@ -243,8 +249,8 @@ class _MapTabState extends State<MapTab> {
 
   void _clearSearchResult() {
     setState(() {
-      _searchResultLocation = null;
-      _searchResultName = null;
+      _selectedPlace = null;
+      _searchController.clear();
     });
   }
 
@@ -261,7 +267,7 @@ class _MapTabState extends State<MapTab> {
           if (_isSearchFocused && _searchSuggestions.isNotEmpty)
             _buildSearchSuggestions(),
           _buildMyLocationButton(),
-          if (_searchResultLocation != null)
+          if (_selectedPlace != null)
             _buildClearSearchButton(),
           if (mapCtrl.isLoading)
             const Center(child: CircularProgressIndicator()),
@@ -318,11 +324,6 @@ class _MapTabState extends State<MapTab> {
       markers.add(_buildUserLocationMarker());
     }
 
-    // Add search result marker if exists
-    if (_searchResultLocation != null) {
-      markers.add(_buildSearchResultMarker());
-    }
-
     return markers;
   }
 
@@ -330,6 +331,9 @@ class _MapTabState extends State<MapTab> {
     final double baseSize = 7;
     final double scaleFactor = (_currentZoom - 14).clamp(0.5, 2.0);
     final double actualSize = baseSize * scaleFactor;
+
+    // Determine if this place is selected
+    final bool isSelected = _selectedPlace != null && _selectedPlace!.name == place.name;
 
     // Dynamically calculate height to avoid overflow
     final double markerHeight = actualSize * 2.0 + 30;
@@ -353,7 +357,7 @@ class _MapTabState extends State<MapTab> {
                 style: TextStyle(
                   fontSize: 5 * scaleFactor,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  color: isSelected ? Colors.red : Colors.black,
                 ),
               ),
             ),
@@ -362,7 +366,7 @@ class _MapTabState extends State<MapTab> {
               width: actualSize,
               height: actualSize,
               decoration: BoxDecoration(
-                color: Colors.grey[500],
+                color: isSelected ? Colors.red : Colors.grey[500],
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 1.5),
                 boxShadow: [
@@ -379,7 +383,6 @@ class _MapTabState extends State<MapTab> {
       ),
     );
   }
-
 
   fm.Marker _buildUserLocationMarker() {
     return fm.Marker(
@@ -398,35 +401,6 @@ class _MapTabState extends State<MapTab> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  fm.Marker _buildSearchResultMarker() {
-    return fm.Marker(
-      width: 40,
-      height: 40,
-      point: _searchResultLocation!,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_searchResultName != null)
-            Text(
-              _searchResultName!,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-            ),
-          const Icon(
-            Icons.location_on,
-            color: Colors.red,
-            size: 36,
-          ),
-        ],
       ),
     );
   }
@@ -492,6 +466,7 @@ class _MapTabState extends State<MapTab> {
                   _searchController.clear();
                   setState(() {
                     _searchSuggestions = [];
+                    _selectedPlace = null;
                   });
                 },
               ),
@@ -589,10 +564,9 @@ class _MapTabState extends State<MapTab> {
         18.0,
       );
 
-      // Set search result marker
+      // Set selected place instead of search result marker
       setState(() {
-        _searchResultLocation = latlng.LatLng(match.latitude, match.longitude);
-        _searchResultName = match.name;
+        _selectedPlace = match;
       });
     } else {
       try {
@@ -600,11 +574,15 @@ class _MapTabState extends State<MapTab> {
         if (location != null) {
           flutterMapController.move(location, 18.0);
 
-          // Set search result marker
+          // Clear selected place since this isn't a known place
           setState(() {
-            _searchResultLocation = location;
-            _searchResultName = query;
+            _selectedPlace = null;
           });
+
+          // Notify user that the place isn't in the database
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("'$query' isn't in your place database")),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("No location found for '$query'")),
