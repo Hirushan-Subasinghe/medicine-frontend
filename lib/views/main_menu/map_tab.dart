@@ -42,6 +42,10 @@ class _MapTabState extends State<MapTab> {
   Timer? _debounce;
   bool _isLoadingSuggestions = false;
 
+  // Search result marker
+  latlng.LatLng? _searchResultLocation;
+  String? _searchResultName;
+
   // Reference bounds for search (around Kelaniya area)
   final double _searchLatMin = 6.9;
   final double _searchLatMax = 7.1;
@@ -227,11 +231,21 @@ class _MapTabState extends State<MapTab> {
     _searchController.text = suggestion.name;
     flutterMapController.move(suggestion.location, 18.0);
 
+    // Add search result marker
     setState(() {
+      _searchResultLocation = suggestion.location;
+      _searchResultName = suggestion.name;
       _searchSuggestions = [];
     });
 
     FocusScope.of(context).unfocus();
+  }
+
+  void _clearSearchResult() {
+    setState(() {
+      _searchResultLocation = null;
+      _searchResultName = null;
+    });
   }
 
   @override
@@ -247,6 +261,8 @@ class _MapTabState extends State<MapTab> {
           if (_isSearchFocused && _searchSuggestions.isNotEmpty)
             _buildSearchSuggestions(),
           _buildMyLocationButton(),
+          if (_searchResultLocation != null)
+            _buildClearSearchButton(),
           if (mapCtrl.isLoading)
             const Center(child: CircularProgressIndicator()),
         ],
@@ -302,12 +318,17 @@ class _MapTabState extends State<MapTab> {
       markers.add(_buildUserLocationMarker());
     }
 
+    // Add search result marker if exists
+    if (_searchResultLocation != null) {
+      markers.add(_buildSearchResultMarker());
+    }
+
     return markers;
   }
 
   fm.Marker _buildPlaceMarker(Place place) {
-    // Dynamic sizing based on zoom
-    final double baseSize = 30;
+    // Reduced size for place markers
+    final double baseSize = 20; // Decreased from 30
     final double scaleFactor = _currentZoom > 14 ? 1.0 : (_currentZoom / 14);
     final double actualSize = baseSize * scaleFactor;
 
@@ -336,7 +357,7 @@ class _MapTabState extends State<MapTab> {
                 child: Text(
                   place.name,
                   style: TextStyle(
-                    fontSize: 12 * scaleFactor,
+                    fontSize: 10 * scaleFactor, // Slightly smaller font
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
                   ),
@@ -383,6 +404,48 @@ class _MapTabState extends State<MapTab> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  fm.Marker _buildSearchResultMarker() {
+    return fm.Marker(
+      width: 40,
+      height: 40,
+      point: _searchResultLocation!,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_searchResultName != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
+              child: Text(
+                _searchResultName!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const Icon(
+            Icons.location_on,
+            color: Colors.red,
+            size: 36,
+          ),
+        ],
       ),
     );
   }
@@ -517,6 +580,21 @@ class _MapTabState extends State<MapTab> {
     );
   }
 
+  Widget _buildClearSearchButton() {
+    return Positioned(
+      bottom: 32,
+      left: 16,
+      child: FloatingActionButton(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.red,
+        elevation: 4,
+        mini: true,
+        onPressed: _clearSearchResult,
+        child: const Icon(Icons.close, size: 20),
+      ),
+    );
+  }
+
   Future<void> _handleSearch(String query) async {
     if (query.isEmpty) return;
 
@@ -529,11 +607,23 @@ class _MapTabState extends State<MapTab> {
         latlng.LatLng(match.latitude, match.longitude),
         18.0,
       );
+
+      // Set search result marker
+      setState(() {
+        _searchResultLocation = latlng.LatLng(match.latitude, match.longitude);
+        _searchResultName = match.name;
+      });
     } else {
       try {
         final location = await fetchCoordinatesForAddress(query);
         if (location != null) {
           flutterMapController.move(location, 18.0);
+
+          // Set search result marker
+          setState(() {
+            _searchResultLocation = location;
+            _searchResultName = query;
+          });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("No location found for '$query'")),
