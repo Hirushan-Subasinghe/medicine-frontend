@@ -327,54 +327,47 @@ class _MapTabState extends State<MapTab> {
   }
 
   fm.Marker _buildPlaceMarker(Place place) {
-    // Reduced size for place markers
-    final double baseSize = 20; // Decreased from 30
-    final double scaleFactor = _currentZoom > 14 ? 1.0 : (_currentZoom / 14);
+    final double baseSize = 7;
+    final double scaleFactor = (_currentZoom - 14).clamp(0.5, 2.0);
     final double actualSize = baseSize * scaleFactor;
 
+    // Dynamically calculate height to avoid overflow
+    final double markerHeight = actualSize * 2.0 + 30;
+
     return fm.Marker(
-      width: actualSize * 2,
-      height: actualSize * 2,
+      width: 100,
+      height: markerHeight,
       point: latlng.LatLng(place.latitude, place.longitude),
+      alignment: Alignment.topCenter,
       child: GestureDetector(
         onTap: () => _showPlaceDetails(place),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_currentZoom > 14) // Only show labels at higher zoom levels
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  place.name,
-                  style: TextStyle(
-                    fontSize: 10 * scaleFactor, // Slightly smaller font
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
+            Flexible( // Fix overflow by wrapping text in Flexible
+              child: Text(
+                place.name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 5 * scaleFactor,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
                 ),
               ),
+            ),
+            SizedBox(height: 2),
             Container(
               width: actualSize,
               height: actualSize,
               decoration: BoxDecoration(
-                color: Colors.grey[700],
+                color: Colors.grey[500],
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: Colors.white, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withOpacity(0.2),
                     blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
@@ -386,6 +379,7 @@ class _MapTabState extends State<MapTab> {
       ),
     );
   }
+
 
   fm.Marker _buildUserLocationMarker() {
     return fm.Marker(
@@ -417,28 +411,15 @@ class _MapTabState extends State<MapTab> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_searchResultName != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 2,
-                  ),
-                ],
+            Text(
+              _searchResultName!,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
-              child: Text(
-                _searchResultName!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
             ),
           const Icon(
             Icons.location_on,
@@ -640,42 +621,54 @@ class _MapTabState extends State<MapTab> {
   }
 
   void _showPlaceDetails(Place place) {
-    showModalBottomSheet(
+    // Using a more adaptive approach with scrollable content
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              place.name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          // Add constraints to ensure the dialog isn't too large
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8, // Limit height
+              maxWidth: MediaQuery.of(context).size.width * 0.9, // Limit width
+            ),
+            child: SingleChildScrollView( // Make content scrollable
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min, // Keep content compact
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      place.description ?? 'No description available.',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('CLOSE'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              place.description ?? 'No description available.',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('CLOSE'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
