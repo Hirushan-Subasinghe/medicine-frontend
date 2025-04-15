@@ -32,6 +32,7 @@ class MapTab extends StatefulWidget {
 }
 
 class _MapTabState extends State<MapTab> {
+  SearchSuggestion? _searchResultMarker;
   final fm.MapController flutterMapController = fm.MapController();
   latlng.LatLng? _userLocation;
   final TextEditingController _searchController = TextEditingController();
@@ -241,6 +242,12 @@ class _MapTabState extends State<MapTab> {
     // Set selected place (or null if not found)
     setState(() {
       _selectedPlace = matchingPlaces.isNotEmpty ? matchingPlaces.first : null;
+      // If not a custom place, set it as a search result marker
+      if (!suggestion.isCustomPlace && _selectedPlace == null) {
+        _searchResultMarker = suggestion;
+      } else {
+        _searchResultMarker = null;
+      }
       _searchSuggestions = [];
     });
 
@@ -250,8 +257,121 @@ class _MapTabState extends State<MapTab> {
   void _clearSearchResult() {
     setState(() {
       _selectedPlace = null;
+      _searchResultMarker = null;
       _searchController.clear();
     });
+  }
+
+  // Add a new method to build the search result marker
+  fm.Marker _buildSearchResultMarker(SearchSuggestion searchResult) {
+    final double baseSize = 7;
+    final double scaleFactor = (_currentZoom - 14).clamp(0.5, 2.0);
+    final double actualSize = baseSize * scaleFactor;
+
+    // Dynamically calculate height to avoid overflow
+    final double markerHeight = actualSize * 2.0 + 30;
+
+    return fm.Marker(
+      width: 100,
+      height: markerHeight,
+      point: searchResult.location,
+      alignment: Alignment.topCenter,
+      child: GestureDetector(
+        onTap: () => _showSearchResultDetails(searchResult),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                searchResult.name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 5 * scaleFactor,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,  // Use red for search result markers
+                ),
+              ),
+            ),
+            SizedBox(height: 2),
+            Container(
+              width: actualSize,
+              height: actualSize,
+              decoration: BoxDecoration(
+                color: Colors.red,  // Use red for search result markers
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Add a method to show details for search results
+  void _showSearchResultDetails(SearchSuggestion searchResult) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      searchResult.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (searchResult.description != null && searchResult.description!.isNotEmpty)
+                      Text(
+                        searchResult.description!,
+                        style: const TextStyle(fontSize: 16),
+                      )
+                    else
+                      Text(
+                        'OpenStreetMap location',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('CLOSE'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -267,7 +387,8 @@ class _MapTabState extends State<MapTab> {
           if (_isSearchFocused && _searchSuggestions.isNotEmpty)
             _buildSearchSuggestions(),
           _buildMyLocationButton(),
-          if (_selectedPlace != null)
+          // Show clear button when either a place or a search result is selected
+          if (_selectedPlace != null || _searchResultMarker != null)
             _buildClearSearchButton(),
           if (mapCtrl.isLoading)
             const Center(child: CircularProgressIndicator()),
@@ -317,6 +438,11 @@ class _MapTabState extends State<MapTab> {
     // Add place markers
     for (var place in places) {
       markers.add(_buildPlaceMarker(place));
+    }
+
+    // Add search result marker if exists
+    if (_searchResultMarker != null) {
+      markers.add(_buildSearchResultMarker(_searchResultMarker!));
     }
 
     // Add user location marker
@@ -546,6 +672,7 @@ class _MapTabState extends State<MapTab> {
         elevation: 4,
         mini: true,
         onPressed: _clearSearchResult,
+        tooltip: 'Clear search',
         child: const Icon(Icons.close, size: 20),
       ),
     );
@@ -567,6 +694,7 @@ class _MapTabState extends State<MapTab> {
       // Set selected place instead of search result marker
       setState(() {
         _selectedPlace = match;
+        _searchResultMarker = null;
       });
     } else {
       try {
@@ -574,12 +702,17 @@ class _MapTabState extends State<MapTab> {
         if (location != null) {
           flutterMapController.move(location, 18.0);
 
-          // Clear selected place since this isn't a known place
+          // Create a search result marker instead of just notification
           setState(() {
             _selectedPlace = null;
+            _searchResultMarker = SearchSuggestion(
+              name: query,
+              location: location,
+              isCustomPlace: false,
+            );
           });
 
-          // Notify user that the place isn't in the database
+          // Still notify user that the place isn't in the database
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("'$query' isn't in your place database")),
           );
