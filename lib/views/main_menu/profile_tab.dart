@@ -1,14 +1,68 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants.dart';
-import '../auth/login_page.dart';
+import '../../controllers/profile_controller.dart';
+import '../../models/user.dart';
 import 'downloadables.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../services/firebase_storage_service.dart';
+import '../auth/login_page.dart';
 
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
 
   @override
+  _ProfileTabState createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  UserModel? currentUser;
+  final ProfileController _profileController = ProfileController();
+  final FirebaseStorageService _storageService = FirebaseStorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken != null) {
+      UserModel? user = await _profileController.fetchUserProfile(idToken);
+      setState(() {
+        currentUser = user;
+      });
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      File imageFile = File(pickedFile.path);
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      String newImageUrl = await _storageService.uploadProfileImage(imageFile, userId);
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken != null) {
+        bool success = await _profileController.updateProfileImage(idToken, newImageUrl);
+        if (success) {
+          setState(() {
+            currentUser = currentUser?.copyWith(profileImgUrl: newImageUrl);
+          });
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Use the profile image from currentUser; fallback to placeholder if missing.
+    String imageUrl = (currentUser != null && currentUser!.profileImgUrl.isNotEmpty)
+        ? currentUser!.profileImgUrl
+        : "";
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -26,33 +80,45 @@ class ProfileTab extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Profile Section
-            const Center(
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: AssetImage(
-                  "assets/images/profile_placeholder.png",
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => _pickAndUploadImage(),
+              child: Center(
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundImage: imageUrl.isNotEmpty
+                      ? NetworkImage(imageUrl)
+                      : const AssetImage("assets/images/profile_placeholder.png")
+                  as ImageProvider,
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              "Student Name",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            // Display student name (firstName + lastName)
+            Text(
+              currentUser != null
+                  ? "${currentUser!.firstName} ${currentUser!.lastName}"
+                  : "Student Name",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 5),
-            const Text(
-              "Student Number: 123456",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+            // Display student number
+            Text(
+              currentUser != null && currentUser!.student != null
+                  ? "Student Number: ${currentUser!.student!.studentNumber}"
+                  : "Student Number: ",
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 5),
-            const Text(
-              "Level: 2nd Year",
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+            // Display student level
+            Text(
+              currentUser != null && currentUser!.student != null
+                  ? "Level: ${currentUser!.student!.level}"
+                  : "Level: ",
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 15),
-
-            // Menu Items
+            // Your menu items below
             _buildMenuItem(Icons.book, "Student Materials", () {
               Navigator.push(
                 context,
@@ -73,12 +139,8 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(
-      IconData icon,
-      String title,
-      VoidCallback onTap, {
-        bool isLogout = false,
-      }) {
+  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap,
+      {bool isLogout = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: GestureDetector(
@@ -159,9 +221,7 @@ class ProfileTab extends StatelessWidget {
                     Expanded(
                       child: TextButton(
                         onPressed: () async {
-                          await FirebaseAuth.instance.signOut(); // ✅ Logout User
-
-                          // Navigate back to login screen and clear all routes
+                          await FirebaseAuth.instance.signOut();
                           Navigator.pushAndRemoveUntil(
                             context,
                             MaterialPageRoute(builder: (context) => LoginPage()),
@@ -190,3 +250,4 @@ class ProfileTab extends StatelessWidget {
     );
   }
 }
+c
