@@ -9,6 +9,12 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/firebase_storage_service.dart';
 import '../auth/login_page.dart';
 
+// Import settings pages
+import 'package:medicine/views/settings/edit_profile.dart';
+import 'package:medicine/views/settings/change_password.dart';
+import 'package:medicine/views/settings/forgot_password.dart';
+import 'package:medicine/views/settings/notifications.dart';
+
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
 
@@ -69,11 +75,55 @@ class _ProfileTabState extends State<ProfileTab> {
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
+          // Replace the icon button with a PopupMenuButton for settings options.
+          PopupMenuButton<String>(
             icon: const Icon(Icons.settings, color: Colors.black),
-            onPressed: () {
-              // TODO: Navigate to settings page
+            onSelected: (value) {
+              switch (value) {
+                case "Edit Profile":
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const EditProfilePage()),
+                  );
+                  break;
+                case "Change Password":
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
+                  );
+                  break;
+                case "Forgot Password":
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                  );
+                  break;
+                case "Notifications":
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NotificationsPage()),
+                  );
+                  break;
+              }
             },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem(
+                value: "Edit Profile",
+                child: Text("Edit Profile"),
+              ),
+              const PopupMenuItem(
+                value: "Change Password",
+                child: Text("Change Password"),
+              ),
+              const PopupMenuItem(
+                value: "Forgot Password",
+                child: Text("Forgot Password"),
+              ),
+              const PopupMenuItem(
+                value: "Notifications",
+                child: Text("Notifications"),
+              ),
+            ],
           ),
         ],
       ),
@@ -88,8 +138,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   radius: 50,
                   backgroundImage: imageUrl.isNotEmpty
                       ? NetworkImage(imageUrl)
-                      : const AssetImage("assets/images/profile_placeholder.png")
-                  as ImageProvider,
+                      : const AssetImage("assets/images/profile_placeholder.png") as ImageProvider,
                 ),
               ),
             ),
@@ -126,7 +175,6 @@ class _ProfileTabState extends State<ProfileTab> {
               );
             }),
             _buildMenuItem(Icons.warning, "Ragging Causes", () {}),
-            _buildMenuItem(Icons.settings, "Settings", () {}),
             _buildMenuItem(
               Icons.logout,
               "Log Out",
@@ -160,7 +208,8 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
           child: Row(
             children: [
-              Icon(icon, color: isLogout ? Colors.red : AppColors.primaryColor),
+              Icon(icon,
+                  color: isLogout ? Colors.red : AppColors.primaryColor),
               const SizedBox(width: 15),
               Expanded(
                 child: Text(
@@ -250,4 +299,3 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 }
-c
