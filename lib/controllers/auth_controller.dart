@@ -2,6 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../core/constants.dart'; // This gives access to baseUrl
+final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
+
+
 
 class AuthController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -29,7 +33,7 @@ class AuthController {
       print("🔑 Firebase ID Token: $idToken");
 
       final response = await http.post(
-        Uri.parse("http://172.19.44.233:5000/api/auth/login"),
+        Uri.parse("$baseUrl/api/auth/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"idToken": idToken}),
       );
@@ -103,7 +107,7 @@ class AuthController {
 
       // 📡 Send user data + ID token to backend
       final response = await http.post(
-        Uri.parse("http://172.19.44.233:5000/api/auth/signup"), // Replace with your local IP or domain
+        Uri.parse("http://10.236.189.117:5000/api/auth/signup"), // Replace with your local IP or domain
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "idToken": idToken,
@@ -172,4 +176,89 @@ class AuthController {
     await _auth.signOut();
     print("✅ User logged out successfully.");
   }
+
+  /// Send OTP before Signup
+  Future<Map<String, dynamic>> sendOtp(String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/otp/send-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body);
+        return {'success': false, 'error': data['error'] ?? 'Failed to send OTP'};
+      }
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Verify OTP entered by user
+  Future<Map<String, dynamic>> sendOtpVerification(String email, String otp) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/otp/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'otp': otp}),
+      );
+
+      print('Response Status: ${res.statusCode}');
+      print('Response Body: ${res.body}');
+
+      if (res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        // Try to decode JSON error (if available)
+        try {
+          final data = jsonDecode(res.body);
+          return {'success': false, 'error': data['error'] ?? 'OTP verification failed'};
+        } catch (e) {
+          // Fallback if not JSON
+          return {'success': false, 'error': 'Unexpected response from server'};
+        }
+      }
+    } catch (e) {
+      return {'success': false, 'error': 'Request failed: ${e.toString()}'};
+    }
+  }
+
+
+
+  /// Final signup after OTP verified
+  Future<String?> completeSignup(Map<String, dynamic> signupData) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final idToken = await user?.getIdToken();
+
+      if (idToken == null) {
+        return "Unable to get Firebase ID token.";
+      }
+
+      // Add token to the data before sending
+      signupData['idToken'] = idToken;
+
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/auth/signup'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(signupData),
+      );
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        return "success";
+      } else {
+        final data = jsonDecode(res.body);
+        return data['error'] ?? 'Signup failed';
+      }
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
 }
+
+
+

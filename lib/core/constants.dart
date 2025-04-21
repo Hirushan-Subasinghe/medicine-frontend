@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+const String baseUrl = "http://10.105.73.117:5000"; // or localhost IP
+
 class AppColors {
-  static const Color primaryColor = Color(0xFF640D5F); //  theme color
-  static const Color textColor = Color(0xFF202020); //  text color
-  static const Color backgroundColor = Colors.white; // Background color
+  static const Color primaryColor = Color(0xFF2C5DE1);
+  static const Color secondaryColor = Color(0xFF4976F1);
+  static const Color textColor = Color(0xFF202020);
+  static const Color backgroundColor = Colors.white;
+  static const Color activeTabBackground = Color(0xFF6885EC);
 }
 
 class AppTextStyles {

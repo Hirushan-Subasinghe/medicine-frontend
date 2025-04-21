@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
 import 'login_page.dart';
+import 'otp_verification_page.dart'; // << Add this
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -38,8 +39,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
   Future<void> fetchDropdownData() async {
     try {
-      final depResponse = await http.get(Uri.parse("http://172.19.44.233:5000/api/common/departments"));
-      final facResponse = await http.get(Uri.parse("http://172.19.44.233:5000/api/common/faculties"));
+      final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
+      final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
 
       if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
         final List<dynamic> depData = jsonDecode(depResponse.body);
@@ -49,6 +50,11 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
           departments = depData.map((e) => e['deptName'].toString()).toList();
           faculties = facData.map((e) => e['facultyName'].toString()).toList();
         });
+
+        //debug
+        print("Departments: $departments");
+        print("Faculties: $faculties");
+
       } else {
         print("Failed to load dropdown data");
       }
@@ -57,15 +63,18 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     }
   }
 
-  Future<void> signupUser() async {
+  Future<void> initiateSignupWithOtp() async {
     setState(() {
       errorMessage = "";
       isLoading = true;
     });
 
+    final email = emailController.text.trim();
+
+    // ✅ Check for empty fields
     if (firstNameController.text.trim().isEmpty ||
         lastNameController.text.trim().isEmpty ||
-        emailController.text.trim().isEmpty ||
+        email.isEmpty ||
         passwordController.text.trim().isEmpty ||
         studentNumberController.text.trim().isEmpty ||
         selectedDepartment == null ||
@@ -79,52 +88,51 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       return;
     }
 
-    String? result = await authController.signup(
-      firstNameController.text.trim(),
-      lastNameController.text.trim(),
-      emailController.text.trim(),
-      passwordController.text.trim(),
-      studentNumberController.text.trim(),
-      selectedLevel!,
-      selectedDepartment!,
-      selectedFaculty!,
-      phoneNoController.text.trim(),
-    );
+    // ✅ Enforce university email restriction
+    if (!email.endsWith('@stu.kln.ac.lk')) {
+      setState(() {
+        errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    // ✅ Send OTP
+    final otpResponse = await authController.sendOtp(email);
 
     setState(() {
       isLoading = false;
     });
 
-    if (result == "success") {
-      showSuccessDialog();
+    if (otpResponse['success']) {
+      final signupData = {
+        "firstName": firstNameController.text.trim(),
+        "lastName": lastNameController.text.trim(),
+        "email": email,
+        "password": passwordController.text.trim(),
+        "studentNumber": studentNumberController.text.trim(),
+        "studentLevel": selectedLevel!,
+        "department": selectedDepartment!,
+        "faculty": selectedFaculty!,
+        "phoneNo": phoneNoController.text.trim()
+      };
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OTPVerificationPage(
+            email: email,
+            signupData: signupData,
+          ),
+        ),
+      );
     } else {
       setState(() {
-        errorMessage = result ?? "Signup failed. Please try again.";
+        errorMessage = otpResponse['error'] ?? "Failed to send OTP.";
       });
     }
   }
 
-  void showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Success"),
-        content: Text("Your account has been created successfully."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
-            },
-            child: Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,11 +181,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 ),
                 value: selectedLevel,
                 items: levels.map((level) => DropdownMenuItem(value: level, child: Text(level))).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedLevel = value;
-                  });
-                },
+                onChanged: (value) => setState(() => selectedLevel = value),
               ),
               SizedBox(height: 16),
 
@@ -191,13 +195,32 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedDepartment,
-                items: departments.map((dep) => DropdownMenuItem(value: dep, child: Text(dep))).toList(),
+                items: departments.isEmpty
+                    ? [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text("No departments available"),
+                  )
+                ]
+                    : departments.map((dep) {
+                  return DropdownMenuItem(
+                    value: dep,
+                    child: Text(dep),
+                  );
+                }).toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedDepartment = value;
                   });
                 },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a department";
+                  }
+                  return null;
+                },
               ),
+
               SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
@@ -207,13 +230,32 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedFaculty,
-                items: faculties.map((fac) => DropdownMenuItem(value: fac, child: Text(fac))).toList(),
+                items: faculties.isEmpty
+                    ? [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text("No faculties available"),
+                  )
+                ]
+                    : faculties.map((fac) {
+                  return DropdownMenuItem(
+                    value: fac,
+                    child: Text(fac),
+                  );
+                }).toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedFaculty = value;
                   });
                 },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a faculty";
+                  }
+                  return null;
+                },
               ),
+
               SizedBox(height: 16),
 
               buildTextField("Phone Number", Icons.phone, phoneNoController, isPhone: true),
@@ -234,7 +276,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: isLoading ? null : signupUser,
+                  onPressed: isLoading ? null : initiateSignupWithOtp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';  // Import Provider package
+import 'controllers/map_controller.dart'; // Import your custom MapController
 import 'views/auth/login_page.dart';
 import 'views/main_menu/main_menu.dart';
 import 'core/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // ✅ Ensure Firebase is initialized
-  runApp(const MyApp());
+  await Firebase.initializeApp(); // Ensure Firebase is initialized
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => MapController()),
+        // You can add more providers here if needed
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -31,13 +41,15 @@ class MyApp extends StatelessWidget {
           titleLarge: AppTextStyles.heading,
         ),
       ),
-      home: AuthChecker(), // ✅ Check if user is logged in or not
+      home: AuthChecker(), // Check if user is logged in or not
     );
   }
 }
 
-// ✅ Automatically navigate based on authentication state
+// Automatically navigate based on authentication state
 class AuthChecker extends StatelessWidget {
+  const AuthChecker({super.key});
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -47,9 +59,9 @@ class AuthChecker extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
-          return MainMenu(); // ✅ Navigate to main menu if logged in
+          return MainMenu(); // Navigate to main menu if logged in
         }
-        return LoginPage(); // ✅ Show login page otherwise
+        return LoginPage(); // Show login page otherwise
       },
     );
   }

@@ -13,13 +13,13 @@ class HomeTab extends StatelessWidget {
             Text("Home", style: TextStyle(color: Colors.white, fontSize: 25)),
           ],
         ),
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.primaryColor, // Top bar
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildUserBanner(),
+            _buildUserBanner(), // Banner with secondary color now
             _buildCategoriesSection(),
             _buildAdditionalSection(),
           ],
@@ -32,7 +32,7 @@ class HomeTab extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryColor,
+        color: AppColors.secondaryColor, // Changed to secondary color
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(20),
           bottomRight: Radius.circular(20),
