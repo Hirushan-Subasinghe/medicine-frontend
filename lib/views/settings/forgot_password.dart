@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../controllers/auth_controller.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({Key? key}) : super(key: key);
-
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
@@ -12,48 +13,257 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final PageController _pageController = PageController();
   final TextEditingController _studentNumberController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final List<TextEditingController> _otpControllers =
-  List.generate(4, (_) => TextEditingController());
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final List<TextEditingController> otpControllers =
+  List.generate(4, (index) => TextEditingController());
+
+  final AuthController _authController = AuthController();
+
   int _currentPage = 0;
-  final int _totalPages = 5;
-  bool _isSuccess = true; // Toggle this to control success/failure flow
+  final int _totalPages = 6; // Added a new page for password reset
+  bool _isLoading = false;
+  String _errorMessage = "";
+  String _otpEmail = "";
 
   @override
   void dispose() {
     _pageController.dispose();
     _studentNumberController.dispose();
     _emailController.dispose();
-    for (var controller in _otpControllers) {
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    for (var controller in otpControllers) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  void _nextPage() {
-    if (_currentPage < _totalPages - 1) {
-      // If at OTP verification page, decide whether to show success or failure
-      if (_currentPage == 2) {
-        // For demonstration, we'll use the _isSuccess flag
-        // In a real app, you'd check if OTP is correct
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _checkConnectivity() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "No internet connection. Please check and try again.";
+      });
+      _showErrorSnackBar(_errorMessage);
+      return Future.error(_errorMessage);
+    }
+    return Future.value();
+  }
+
+  // Verify student number
+  Future<void> _verifyStudentNumber() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = "";
+    });
+
+    try {
+      await _checkConnectivity();
+
+      final studentNumber = _studentNumberController.text.trim();
+      if (studentNumber.isEmpty) {
+        throw "Student number cannot be empty";
+      }
+
+      final result = await _authController.verifyStudentNumber(studentNumber);
+
+      if (result['success'] && result['exists']) {
+        _nextPage();
+      } else {
+        throw result['error'] ?? "Student number not found";
+      }
+    } catch (e) {
+      _showErrorSnackBar(e.toString());
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Verify email
+  Future<void> _verifyEmail() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = "";
+    });
+
+    try {
+      await _checkConnectivity();
+
+      final studentNumber = _studentNumberController.text.trim();
+      final email = _emailController.text.trim();
+
+      if (email.isEmpty) {
+        throw "Email cannot be empty";
+      }
+
+      if (!email.endsWith("@stu.kln.ac.lk")) {
+        throw "Only university emails (@stu.kln.ac.lk) are allowed";
+      }
+
+      final result = await _authController.verifyEmail(studentNumber, email);
+
+      if (result['success'] && result['valid']) {
+        // Store email for OTP verification
+        _otpEmail = email;
+
+        // Send OTP
+        final otpResult = await _authController.sendPasswordResetOtp(email);
+
+        if (otpResult['success']) {
+          _showSuccessSnackBar("OTP sent to your email");
+          _nextPage();
+        } else {
+          throw otpResult['error'] ?? "Failed to send OTP";
+        }
+      } else {
+        throw result['error'] ?? "Email verification failed";
+      }
+    } catch (e) {
+      _showErrorSnackBar(e.toString());
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Verify OTP
+  Future<void> _verifyOTP() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = "";
+    });
+
+    try {
+      await _checkConnectivity();
+
+      final otp = otpControllers.map((controller) => controller.text).join();
+
+      if (otp.length != 4) {
+        throw "Please enter the complete 4-digit OTP";
+      }
+
+      final result = await _authController.verifyPasswordResetOtp(_otpEmail, otp);
+
+      if (result['success']) {
+        _nextPage();
+      } else {
         _pageController.animateToPage(
-          _isSuccess ? 3 : 4, // Go to success or failure page
+          4, // Show failure page
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        throw result['error'] ?? "OTP verification failed";
+      }
+    } catch (e) {
+      _showErrorSnackBar(e.toString());
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Reset password
+  Future<void> _resetPassword() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = "";
+    });
+
+    try {
+      await _checkConnectivity();
+
+      final newPassword = _newPasswordController.text;
+      final confirmPassword = _confirmPasswordController.text;
+
+      if (newPassword.isEmpty) {
+        throw "New password cannot be empty";
+      }
+
+      if (newPassword.length < 6) {
+        throw "Password should be at least 6 characters";
+      }
+
+      if (newPassword != confirmPassword) {
+        throw "Passwords do not match";
+      }
+
+      final result = await _authController.resetPassword(_otpEmail, newPassword);
+
+      if (result['success']) {
+        _pageController.animateToPage(
+          5, // Success page
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
       } else {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        throw result['error'] ?? "Password reset failed";
       }
+    } catch (e) {
+      _showErrorSnackBar(e.toString());
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  // For demonstration purposes - toggle between success and failure
-  void _toggleSuccessState() {
+  void _nextPage() {
+    if (_currentPage < _totalPages - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _resendOTP() async {
     setState(() {
-      _isSuccess = !_isSuccess;
+      _isLoading = true;
     });
+
+    try {
+      await _checkConnectivity();
+
+      final result = await _authController.sendPasswordResetOtp(_otpEmail);
+
+      if (result['success']) {
+        _showSuccessSnackBar("OTP resent to your email");
+      } else {
+        throw result['error'] ?? "Failed to resend OTP";
+      }
+    } catch (e) {
+      _showErrorSnackBar(e.toString());
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _retryVerification() {
@@ -69,8 +279,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Reset Password"),
+        title: const Text(
+          "Reset Password",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 25,
+          ),
+        ),
         backgroundColor: AppColors.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
@@ -87,8 +304,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 _buildStudentNumberPage(),
                 _buildEmailPage(),
                 _buildOtpVerificationPage(),
-                _buildSuccessPage(),
+                _buildNewPasswordPage(),
                 _buildFailurePage(),
+                _buildSuccessPage(),
               ],
             ),
           ),
@@ -103,9 +321,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(_totalPages - 1, (index) {
-          // We subtract 1 because we don't want to show a dot for the failure page
-          // The user should only see 4 dots for the normal flow
+        children: List.generate(_totalPages - 2, (index) {
+          // We subtract 2 because we don't want to show dots for the failure and success pages
           return Container(
             width: 10,
             height: 10,
@@ -131,7 +348,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         children: [
           Text(
             "Enter your student number",
-            style: AppTextStyles.heading,
+            style: AppTextStyles.heading.copyWith(fontSize: 30),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -153,8 +370,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
           const SizedBox(height: 24),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ElevatedButton(
-            onPressed: _nextPage,
+            onPressed: _isLoading ? null : _verifyStudentNumber,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -162,31 +388,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
               "Next",
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: Colors.white),
             ),
-          ),
-          // This is just for demo purposes - to toggle between success/failure
-          // Remove in production
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Demo: ",
-                style: AppTextStyles.body,
-              ),
-              TextButton(
-                onPressed: _toggleSuccessState,
-                child: Text(
-                  _isSuccess ? "Show Failure Flow" : "Show Success Flow",
-                  style: TextStyle(
-                    color: AppColors.primaryColor,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -202,7 +409,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         children: [
           Text(
             "Verify your email",
-            style: AppTextStyles.heading,
+            style: AppTextStyles.heading.copyWith(fontSize: 30),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -224,8 +431,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
           const SizedBox(height: 24),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ElevatedButton(
-            onPressed: _nextPage,
+            onPressed: _isLoading ? null : _verifyEmail,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -233,9 +449,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
               "Send Verification Code",
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: Colors.white),
             ),
           ),
         ],
@@ -268,7 +486,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               return SizedBox(
                 width: 60,
                 child: TextFormField(
-                  controller: _otpControllers[index],
+                  controller: otpControllers[index],
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
                   maxLength: 1,
@@ -296,7 +514,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 style: AppTextStyles.body,
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: _isLoading ? null : _resendOTP,
                 child: Text(
                   "Resend",
                   style: TextStyle(
@@ -308,8 +526,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ],
           ),
           const SizedBox(height: 24),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ElevatedButton(
-            onPressed: _nextPage,
+            onPressed: _isLoading ? null : _verifyOTP,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -317,9 +544,85 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
               "Verify",
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNewPasswordPage() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            "Set New Password",
+            style: AppTextStyles.heading,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Create a new password for your account",
+            style: AppTextStyles.body,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          TextFormField(
+            controller: _newPasswordController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: "New Password",
+              hintText: "At least 6 characters",
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              prefixIcon: const Icon(Icons.lock),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _confirmPasswordController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: "Confirm Password",
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              prefixIcon: const Icon(Icons.lock_outline),
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _resetPassword,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+              "Reset Password",
+              style: TextStyle(fontSize: 13),
             ),
           ),
         ],
@@ -341,13 +644,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
           const SizedBox(height: 24),
           Text(
-            "Success!",
+            "Password Reset Successful!",
             style: AppTextStyles.heading,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
-            "A new password has been sent to your email. Use that to login and change your password immediately.",
+            "Your password has been reset successfully. You can now login with your new password.",
             style: AppTextStyles.body,
             textAlign: TextAlign.center,
           ),
