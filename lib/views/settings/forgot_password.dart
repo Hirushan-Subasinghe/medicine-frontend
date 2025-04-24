@@ -174,17 +174,38 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       final result = await _authController.verifyPasswordResetOtp(_otpEmail, otp);
 
       if (result['success']) {
-        _nextPage();
+        _nextPage(); // Only move to next page if OTP is correct
       } else {
+        // Stay on the same page and show error message for wrong OTP
+        setState(() {
+          _errorMessage = result['error'] ?? "Invalid OTP. Please try again.";
+        });
+        
+        // Clear OTP input fields to let user try again
+        for (var controller in otpControllers) {
+          controller.clear();
+        }
+        
+        // Focus on the first OTP field
+        FocusScope.of(context).unfocus();
+        Future.delayed(Duration(milliseconds: 100), () {
+          FocusScope.of(context).requestFocus(FocusNode());
+        });
+      }
+    } catch (e) {
+      // For other errors like connectivity issues, show error message
+      _showErrorSnackBar(e.toString());
+      
+      // Only navigate to error page for critical errors, not for wrong OTP
+      if (e.toString().contains("connectivity") || 
+          e.toString().contains("server") ||
+          e.toString().contains("timeout")) {
         _pageController.animateToPage(
-          4, // Show failure page
+          4, // Navigate to failure page for critical errors
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
-        throw result['error'] ?? "OTP verification failed";
       }
-    } catch (e) {
-      _showErrorSnackBar(e.toString());
     } finally {
       setState(() {
         _isLoading = false;
