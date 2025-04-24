@@ -16,9 +16,8 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
   List<dynamic> categories = [];
   Map<int, List<dynamic>> materialsMap = {};
   bool isLoading = true;
-
-  final String baseUrl = "http://192.168.8.191:5000"; // 🔁 Replace with your backend IP
-
+  final String baseUrl = "http://172.19.35.252:5001"; // Replace with your backend IP
+  
   @override
   void initState() {
     super.initState();
@@ -27,43 +26,65 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
 
   Future<void> fetchCategories() async {
     try {
+      print("Fetching categories from: $baseUrl/api/materials/categories");
       final response = await http.get(Uri.parse("$baseUrl/api/materials/categories"));
+      
+      print("Response status code: ${response.statusCode}");
+      print("Response body: ${response.body}");
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        
         setState(() {
           categories = data;
           _tabController = TabController(length: categories.length, vsync: this);
         });
-
+        
         for (var category in categories) {
-          await fetchMaterials(category['categoryID']);
+          // Check if category has categoryId or categoryID
+          int categoryId = category['categoryId'] ?? category['categoryID'];
+          print("Fetching materials for category ID: $categoryId");
+          await fetchMaterials(categoryId);
         }
-
+        
         setState(() {
           isLoading = false;
         });
       } else {
-        throw Exception("Failed to load categories");
+        throw Exception("Failed to load categories: Status ${response.statusCode}");
       }
     } catch (e) {
       print("❌ Error fetching categories: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to load categories")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to load categories: $e")),
+        );
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> fetchMaterials(int categoryID) async {
+  Future<void> fetchMaterials(int categoryId) async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/api/materials/materials/$categoryID"));
+      print("Fetching materials from: $baseUrl/api/materials/materials/$categoryId");
+      final response = await http.get(Uri.parse("$baseUrl/api/materials/materials/$categoryId"));
+      
+      print("Materials response status: ${response.statusCode}");
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print("Materials data for category $categoryId: $data");
+        
         setState(() {
-          materialsMap[categoryID] = data;
+          materialsMap[categoryId] = data;
         });
+      } else {
+        print("Error response for materials: ${response.body}");
       }
     } catch (e) {
-      print("❌ Error fetching materials: $e");
+      print("❌ Error fetching materials for category $categoryId: $e");
     }
   }
 
@@ -73,9 +94,7 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
       final Directory dir = await getApplicationDocumentsDirectory();
       final String savePath = "${dir.path}/$filename";
       print("📥 Downloading to: $savePath");
-
       await Dio().download(url, savePath);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("✅ Downloaded to internal storage")),
       );
@@ -115,71 +134,73 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
-          : TabBarView(
-        controller: _tabController,
-        children: categories.map((category) {
-          final int categoryID = category['categoryID'];
-          final materials = materialsMap[categoryID] ?? [];
-
-          return materials.isEmpty
-              ? Center(child: Text("No materials found."))
-              : ListView.builder(
-            itemCount: materials.length,
-            itemBuilder: (context, index) {
-              final material = materials[index];
-              return Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.insert_drive_file,
-                          color: AppColors.primaryColor, size: 40),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              material['title'],
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              material['fileName'],
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.download, color: AppColors.primaryColor),
-                        onPressed: () {
-                          downloadFile(
-                            material['materialLink'],
-                            material['fileName'],
+          : categories.isEmpty
+              ? Center(child: Text("No categories found. Please add categories first."))
+              : TabBarView(
+                  controller: _tabController,
+                  children: categories.map((category) {
+                    // Check if category has categoryId or categoryID
+                    int categoryId = category['categoryId'] ?? category['categoryID'];
+                    final materials = materialsMap[categoryId] ?? [];
+                    
+                    return materials.isEmpty
+                        ? Center(child: Text("No materials found in this category."))
+                        : ListView.builder(
+                            itemCount: materials.length,
+                            itemBuilder: (context, index) {
+                              final material = materials[index];
+                              return Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 5,
+                                        offset: Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.insert_drive_file,
+                                          color: AppColors.primaryColor, size: 40),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              material['title'],
+                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                            Text(
+                                              material['fileName'],
+                                              style: TextStyle(color: Colors.grey),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.download, color: AppColors.primaryColor),
+                                        onPressed: () {
+                                          downloadFile(
+                                            material['materialLink'],
+                                            material['fileName'],
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           );
-                        },
-                      ),
-                    ],
-                  ),
+                  }).toList(),
                 ),
-              );
-            },
-          );
-        }).toList(),
-      ),
     );
   }
 }
-
