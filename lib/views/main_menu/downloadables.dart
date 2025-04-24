@@ -4,15 +4,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import '../../core/constants.dart';
-// Make sure to add these packages to your pubspec.yaml
-// permission_handler: ^10.4.5
-// external_path: ^1.0.3 (for Android)
-// open_file: ^3.3.2 (optional, for opening files)
-import 'package:permission_handler/permission_handler.dart';
+import '../../core/constants.dart'; // This import contains the baseUrl
 import 'package:open_file/open_file.dart';
-// If on Android, also import:
-// import 'package:external_path/external_path.dart';
 
 class DownloadablesPage extends StatefulWidget {
   @override
@@ -24,7 +17,7 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
   List<dynamic> categories = [];
   Map<int, List<dynamic>> materialsMap = {};
   bool isLoading = true;
-  final String baseUrl = "http://172.19.35.252:5001"; // Replace with your backend IP
+  // Removed the baseUrl declaration here, using the one from constants.dart
   
   @override
   void initState() {
@@ -97,178 +90,101 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
   }
 
   Future<void> downloadFile(String url, String filename) async {
-    // Show downloading started message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Starting download..."),
-        duration: Duration(seconds: 1),
-      ),
-    );
-
     try {
-      print("📌 Attempting to download from URL: $url");
-      
-      // Request storage permission (for Android 10 and below)
-      var status = await Permission.storage.request();
-      bool hasPermission = status.isGranted;
-      
-      String savePath;
-      
-      // Determine where to save the file
-      if (hasPermission) {
-        // Try to use downloads directory first (more accessible to users)
-        try {
-          // For Android - use external storage if available
-          if (Platform.isAndroid) {
-            // If using external_path package:
-            // String downloadPath = await ExternalPath.getExternalStoragePublicDirectory(
-            //   ExternalPath.DIRECTORY_DOWNLOADS
-            // );
-            // savePath = "$downloadPath/$filename";
-            
-            // Without external_path package, fallback to app's documents directory
-            final Directory appDocDir = await getApplicationDocumentsDirectory();
-            savePath = "${appDocDir.path}/$filename";
-          } else {
-            // For iOS - use documents directory
-            final Directory appDocDir = await getApplicationDocumentsDirectory();
-            savePath = "${appDocDir.path}/$filename";
-          }
-          print("📥 Will download to: $savePath");
-        } catch (e) {
-          print("❌ Error determining save path: $e");
-          final Directory appDocDir = await getApplicationDocumentsDirectory();
-          savePath = "${appDocDir.path}/$filename";
-          print("📥 Falling back to app directory: $savePath");
-        }
-      } else {
-        // If permission denied, use app directory
-        final Directory appDocDir = await getApplicationDocumentsDirectory();
-        savePath = "${appDocDir.path}/$filename";
-        print("📥 Using app directory (no permission): $savePath");
-      }
-      
-      // Create a dio instance with options
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(minutes: 2),
-          headers: {
-            'Accept': '*/*',
-          },
+      // Show downloading started message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Starting download..."),
+          duration: Duration(seconds: 1),
         ),
       );
+      // Get app directory for download - this is guaranteed to work
+      final Directory dir = await getApplicationDocumentsDirectory();
+      final String savePath = "${dir.path}/$filename";
+      print("📥 Downloading to: $savePath");
       
-      // Show a progress dialog
+      // Show download progress dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: const Text('Downloading...'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const LinearProgressIndicator(),
-                    const SizedBox(height: 16),
-                    Text('Downloading $filename'),
-                  ],
-                ),
-              );
-            },
+          return AlertDialog(
+            title: const Text('Downloading...'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const LinearProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Downloading $filename'),
+              ],
+            ),
           );
         },
       );
-
-      // Track if the request was successful
-      bool downloadSuccess = false;
-      
-      // Download the file
-      try {
-        Response response = await dio.download(
-          url,
-          savePath,
-          onReceiveProgress: (received, total) {
-            if (total != -1) {
-              final progress = (received / total * 100).toStringAsFixed(0);
-              print('Download progress: $progress%');
-            }
-          },
-        );
-        
-        // Check if response status is success
-        if (response.statusCode == 200) {
-          downloadSuccess = true;
-          // Verify the file exists and log details
-          final File downloadedFile = File(savePath);
-          if (downloadedFile.existsSync()) {
-            print("✅ File exists: ${downloadedFile.existsSync()}");
-            print("✅ File size: ${downloadedFile.lengthSync()} bytes");
-          } else {
-            print("⚠️ File doesn't exist after successful download");
+      // Download file
+      await Dio().download(
+        url,
+        savePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            final progress = (received / total * 100).toStringAsFixed(0);
+            print('Download progress: $progress%');
           }
-        }
-      } catch (e) {
-        print("❌ Dio download error: $e");
-      } finally {
-        // Close the progress dialog
-        if (Navigator.of(context, rootNavigator: true).canPop()) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-      }
+        },
+      );
+      // Close progress dialog
+      Navigator.of(context, rootNavigator: true).pop();
       
-      // Show success or error message
-      if (downloadSuccess) {
-        final File file = File(savePath);
-        if (file.existsSync() && file.lengthSync() > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("File downloaded successfully"),
-              action: SnackBarAction(
-                label: 'OPEN',
-                onPressed: () async {
-                  try {
-                    final result = await OpenFile.open(savePath);
-                    print("Open file result: ${result.message}");
-                    if (result.type != ResultType.done) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Could not open file: ${result.message}")),
-                      );
-                    }
-                  } catch (e) {
-                    print("❌ Error opening file: $e");
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Could not open file")),
-                    );
-                  }
-                },
-              ),
-            ),
-          );
-        } else {
-          throw Exception("File download appears successful but file is missing or empty");
-        }
-      } else {
-        throw Exception("Download process failed");
-      }
-    } catch (e) {
-      // Detailed error reporting
-      print("❌ Download function error: $e");
-      
-      // Show error to user
-      if (mounted) {
+      // Verify the file exists
+      final File downloadedFile = File(savePath);
+      if (downloadedFile.existsSync()) {
+        print("✅ File successfully downloaded to: $savePath");
+        print("✅ File size: ${downloadedFile.lengthSync()} bytes");
+        
+        // Show success message with VIEW option
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Download failed: ${e.toString().length > 100 
-              ? e.toString().substring(0, 100) + '...' 
-              : e.toString()}"),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
+            content: Text("Download complete"),
+            action: SnackBarAction(
+              label: 'VIEW',
+              onPressed: () async {
+                try {
+                  // Open the file
+                  final result = await OpenFile.open(savePath);
+                  print("Open file result: ${result.message}");
+                  
+                  if (result.type != ResultType.done) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Could not open file: ${result.message}")),
+                    );
+                  }
+                } catch (e) {
+                  print("❌ Error opening file: $e");
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Could not open file. Make sure you have the open_file package.")),
+                  );
+                }
+              },
+            ),
           ),
         );
+      } else {
+        throw Exception("File download appeared to succeed but file doesn't exist at $savePath");
       }
+    } catch (e) {
+      // Close progress dialog if open
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      
+      print("❌ Download error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Download failed: ${e.toString().substring(0, 
+            e.toString().length > 100 ? 100 : e.toString().length)}"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -281,92 +197,266 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
-       title: Text("Downloadables",
-           style: TextStyle(color: Colors.white, fontSize: 25)
-       ),
-        backgroundColor: AppColors.primaryColor,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white), // ✅ Back button in white
-          onPressed: () => Navigator.of(context).pop(),
+        title: Text("Downloadables", 
+          style: TextStyle(color: Colors.white, fontSize: 25)
         ),
-        bottom: isLoading || categories.isEmpty
-            ? null
-            : TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: categories.map((cat) => Tab(text: cat['categoryName'])).toList(),
+        backgroundColor: AppColors.primaryColor,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+      ),
+      body: Column(
+        children: [
+          if (!isLoading && categories.isNotEmpty)
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              color: AppColors.primaryColor,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: List.generate(categories.length, (index) {
+                    final isSelected = _tabController.index == index;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _tabController.animateTo(index);
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: Duration(milliseconds: 200),
+                        margin: EdgeInsets.symmetric(horizontal: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.activeTabBackground
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          categories[index]['categoryName'],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          
+          // Body
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : categories.isEmpty
+                    ? Center(child: Text("No categories found. Please add categories first."))
+                    : TabBarView(
+                        controller: _tabController,
+                        children: categories.map((category) {
+                          int categoryId = category['categoryId'] ?? category['categoryID'];
+                          final materials = materialsMap[categoryId] ?? [];
+                          
+                          return materials.isEmpty
+                              ? Center(child: Text("No materials found in this category."))
+                              : RefreshIndicator(
+                                  onRefresh: () async {
+                                    await fetchMaterials(categoryId);
+                                  },
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.all(8),
+                                    itemCount: materials.length,
+                                    itemBuilder: (context, index) {
+                                      final material = materials[index];
+                                      return _buildMaterialItem(material);
+                                    },
+                                  ),
+                                );
+                        }).toList(),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaterialItem(dynamic material) {
+    // Get file type icon
+    IconData fileIcon = _getFileIcon(material['fileType'] ?? material['fileName'] ?? '');
+    
+    return Card(
+      elevation: 1,
+      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+      child: InkWell(
+        onTap: () {
+          // Show material details or preview
+          _showMaterialDetails(material);
+        },
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(fileIcon, color: AppColors.primaryColor, size: 28),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      material['title'] ?? 'Untitled',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      material['description'] ?? 'No description',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.insert_drive_file, size: 14, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          material['fileName'] ?? 'Unknown file',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.download_rounded, color: AppColors.primaryColor),
+                onPressed: () {
+                  downloadFile(
+                    material['materialLink'],
+                    material['fileName'],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : categories.isEmpty
-              ? Center(child: Text("No categories found. Please add categories first."))
-              : TabBarView(
-                  controller: _tabController,
-                  children: categories.map((category) {
-                    // Check if category has categoryId or categoryID
-                    int categoryId = category['categoryId'] ?? category['categoryID'];
-                    final materials = materialsMap[categoryId] ?? [];
-                    
-                    return materials.isEmpty
-                        ? Center(child: Text("No materials found in this category."))
-                        : ListView.builder(
-                            itemCount: materials.length,
-                            itemBuilder: (context, index) {
-                              final material = materials[index];
-                              return Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Container(
-                                  padding: EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 5,
-                                        offset: Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.insert_drive_file,
-                                          color: AppColors.primaryColor, size: 40),
-                                      SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              material['title'],
-                                              style: TextStyle(fontWeight: FontWeight.bold),
-                                            ),
-                                            Text(
-                                              material['fileName'],
-                                              style: TextStyle(color: Colors.grey),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.download, color: AppColors.primaryColor),
-                                        onPressed: () {
-                                          downloadFile(
-                                            material['materialLink'],
-                                            material['fileName'],
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                  }).toList(),
+    );
+  }
+
+  IconData _getFileIcon(String fileType) {
+    fileType = fileType.toLowerCase();
+    
+    if (fileType.contains('pdf')) {
+      return Icons.picture_as_pdf;
+    } else if (fileType.contains('doc') || fileType.contains('word')) {
+      return Icons.description;
+    } else if (fileType.contains('xls') || fileType.contains('sheet')) {
+      return Icons.table_chart;
+    } else if (fileType.contains('ppt') || fileType.contains('presentation')) {
+      return Icons.slideshow;
+    } else if (fileType.contains('jpg') || fileType.contains('jpeg') || 
+              fileType.contains('png') || fileType.contains('image')) {
+      return Icons.image;
+    } else if (fileType.contains('zip') || fileType.contains('rar') || 
+              fileType.contains('7z') || fileType.contains('tar')) {
+      return Icons.folder_zip;
+    } else if (fileType.contains('mp3') || fileType.contains('wav') || 
+              fileType.contains('audio')) {
+      return Icons.audio_file;
+    } else if (fileType.contains('mp4') || fileType.contains('mov') || 
+              fileType.contains('video')) {
+      return Icons.video_file;
+    } else {
+      return Icons.insert_drive_file;
+    }
+  }
+
+  void _showMaterialDetails(dynamic material) {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                material['title'] ?? 'Untitled',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
+              ),
+              SizedBox(height: 12),
+              if (material['description'] != null) ...[
+                Text(
+                  'Description:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(material['description']),
+                SizedBox(height: 12),
+              ],
+              Row(
+                children: [
+                  Icon(_getFileIcon(material['fileType'] ?? material['fileName'] ?? ''), 
+                      color: AppColors.primaryColor),
+                  SizedBox(width: 8),
+                  Text(material['fileName'] ?? 'Unknown file'),
+                ],
+              ),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.download),
+                    label: Text('Download'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      downloadFile(
+                        material['materialLink'],
+                        material['fileName'],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
