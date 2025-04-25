@@ -72,50 +72,82 @@ class _ProfileTabState extends State<ProfileTab> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("User Profile", style: TextStyle(color: Colors.white, fontSize: 25)),
+        title: Row(
+          children: [
+            Icon(Icons.person, color: Colors.white),
+            SizedBox(width: 8),
+            Text("User Profile", style: TextStyle(color: Colors.white, fontSize: 25)),
+          ],
+        ),
         backgroundColor: AppColors.primaryColor,
         elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () => _pickAndUploadImage(),
-              child: Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: imageUrl.isNotEmpty
-                      ? NetworkImage(imageUrl)
-                      : const AssetImage("assets/images/profile_placeholder.png") as ImageProvider,
-                ),
+            // New Profile Header Layout - Image left, details right
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left side - Profile Image
+                  GestureDetector(
+                    onTap: () => _pickAndUploadImage(),
+                    child: CircleAvatar(
+                      radius: 45,
+                      backgroundImage: imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : const AssetImage("assets/images/profile_placeholder.png") as ImageProvider,
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 16),
+                  
+                  // Right side - User Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // User name
+                        Text(
+                          currentUser != null
+                              ? "${currentUser!.firstName} ${currentUser!.lastName}"
+                              : "Student Name",
+                          style: const TextStyle(
+                            fontSize: 20, 
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        
+                        // Student number
+                        Text(
+                          currentUser != null && currentUser!.student != null
+                              ? "Student Number: ${currentUser!.student!.studentNumber}"
+                              : "Student Number: ",
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        
+                        // Student level
+                        Text(
+                          currentUser != null && currentUser!.student != null
+                              ? "Level: ${currentUser!.student!.level}"
+                              : "Level: ",
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            // Display student name (firstName + lastName)
-            Text(
-              currentUser != null
-                  ? "${currentUser!.firstName} ${currentUser!.lastName}"
-                  : "Student Name",
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-            // Display student number
-            Text(
-              currentUser != null && currentUser!.student != null
-                  ? "Student Number: ${currentUser!.student!.studentNumber}"
-                  : "Student Number: ",
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 5),
-            // Display student level
-            Text(
-              currentUser != null && currentUser!.student != null
-                  ? "Level: ${currentUser!.student!.level}"
-                  : "Level: ",
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 15),
+            
+            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+            
             // Menu items section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
