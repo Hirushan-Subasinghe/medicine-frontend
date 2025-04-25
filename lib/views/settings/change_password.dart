@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants.dart';
+import '../../controllers/auth_controller.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({Key? key}) : super(key: key);
@@ -14,6 +15,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  final AuthController _authController = AuthController();
 
   bool _isLoading = false;
   bool _obscureCurrentPassword = true;
@@ -33,8 +36,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 
   void _moveToNextStep() {
-    // For now, just navigate to the next step
-    // Later, implement validation logic here
+    // First, validate the current password
+    if (_currentPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your current password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to the next step
     _pageController.nextPage(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -54,45 +67,41 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     });
 
     try {
-      // Get current user
-      User? user = FirebaseAuth.instance.currentUser;
+      // Use the AuthController to change the password
+      final result = await _authController.changePassword(
+        _currentPasswordController.text,
+        _newPasswordController.text,
+      );
 
-      if (user != null) {
-        // Re-authenticate the user with their current password
-        AuthCredential credential = EmailAuthProvider.credential(
-          email: user.email!,
-          password: _currentPasswordController.text,
-        );
-
-        await user.reauthenticateWithCredential(credential);
-
-        // Update password
-        await user.updatePassword(_newPasswordController.text);
-
+      if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Password changed successfully'),
             backgroundColor: Colors.green,
           ),
         );
-
         Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['error'] ?? 'Failed to change password'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        
+        // If the current password is incorrect, go back to the first step
+        if (result['error']?.contains('current password is incorrect') ?? false) {
+          _pageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          setState(() {
+            _currentStep = 0;
+            _currentPasswordController.clear();
+          });
+        }
       }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Failed to change password';
-
-      if (e.code == 'wrong-password') {
-        errorMessage = 'Current password is incorrect';
-      } else if (e.code == 'weak-password') {
-        errorMessage = 'The new password is too weak';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -72,60 +72,9 @@ class _ProfileTabState extends State<ProfileTab> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        title: Text("User Profile", style: TextStyle(color: Colors.white, fontSize: 25)),
+        backgroundColor: AppColors.primaryColor,
         elevation: 0,
-        actions: [
-          // Replace the icon button with a PopupMenuButton for settings options.
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.settings, color: Colors.black),
-            onSelected: (value) {
-              switch (value) {
-                case "Edit Profile":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const EditProfilePage()),
-                  );
-                  break;
-                case "Change Password":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
-                  );
-                  break;
-                case "Forgot Password":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
-                  );
-                  break;
-                case "Notifications":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const NotificationsPage()),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem(
-                value: "Edit Profile",
-                child: Text("Edit Profile"),
-              ),
-              const PopupMenuItem(
-                value: "Change Password",
-                child: Text("Change Password"),
-              ),
-              const PopupMenuItem(
-                value: "Forgot Password",
-                child: Text("Forgot Password"),
-              ),
-              const PopupMenuItem(
-                value: "Notifications",
-                child: Text("Notifications"),
-              ),
-            ],
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -167,7 +116,22 @@ class _ProfileTabState extends State<ProfileTab> {
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 15),
-            // Your menu items below
+            // Menu items section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Academic",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+            ),
+            // Academic menu items
             _buildMenuItem(Icons.book, "Student Materials", () {
               Navigator.push(
                 context,
@@ -175,12 +139,57 @@ class _ProfileTabState extends State<ProfileTab> {
               );
             }),
             _buildMenuItem(Icons.warning, "Ragging Causes", () {}),
+            
+            // Settings section header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Settings",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+            ),
+            // Settings menu items as tiles
+            _buildMenuItem(Icons.person, "Edit Profile", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditProfilePage()),
+              );
+            }),
+            _buildMenuItem(Icons.lock, "Change Password", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
+              );
+            }),
+            _buildMenuItem(Icons.password, "Forgot Password", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+              );
+            }),
+            _buildMenuItem(Icons.notifications, "Notifications", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsPage()),
+              );
+            }),
+            
+            // Logout section with some spacing
+            const SizedBox(height: 10),
             _buildMenuItem(
               Icons.logout,
               "Log Out",
-                  () => _showLogoutDialog(context),
+              () => _showLogoutDialog(context),
               isLogout: true,
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

@@ -381,6 +381,57 @@ class AuthController {
     }
   }
 
+  /// Change password for logged-in user
+Future<Map<String, dynamic>> changePassword(String currentPassword, String newPassword) async {
+  try {
+    // Get current user
+    User? user = _auth.currentUser;
+    
+    if (user == null || user.email == null) {
+      return {'success': false, 'error': 'User not logged in or email is missing'};
+    }
+    
+    // First, get a fresh ID token
+    String? idToken = await user.getIdToken(true);
+    
+    if (idToken == null) {
+      return {'success': false, 'error': 'Failed to get ID token'};
+    }
+    
+    // Call the backend API to change the password
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/password-change/change'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'idToken': idToken,
+        'currentPassword': currentPassword,
+        'newPassword': newPassword
+      }),
+    );
+
+    print('Password change response status: ${response.statusCode}');
+    print('Password change response body: ${response.body}');
+    
+    final data = jsonDecode(response.body);
+    
+    if (response.statusCode == 200) {
+      return {'success': true};
+    } else {
+      return {
+        'success': false,
+        'error': data['error'] ?? 'Failed to change password'
+      };
+    }
+  } on FirebaseAuthException catch (e) {
+    print('FirebaseAuthException: ${e.code}');
+    String errorMessage = getFirebaseErrorMessage(e.code);
+    return {'success': false, 'error': errorMessage};
+  } catch (e) {
+    print('Error changing password: $e');
+    return {'success': false, 'error': e.toString()};
+  }
+}
+
 }
 
 
