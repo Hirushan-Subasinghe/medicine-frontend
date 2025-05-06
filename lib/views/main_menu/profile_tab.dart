@@ -72,102 +72,98 @@ class _ProfileTabState extends State<ProfileTab> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Icon(Icons.person, color: Colors.white),
+            SizedBox(width: 8),
+            Text("User Profile", style: TextStyle(color: Colors.white, fontSize: 25)),
+          ],
+        ),
+        backgroundColor: AppColors.primaryColor,
         elevation: 0,
-        actions: [
-          // Replace the icon button with a PopupMenuButton for settings options.
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.settings, color: Colors.black),
-            onSelected: (value) {
-              switch (value) {
-                case "Edit Profile":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const EditProfilePage()),
-                  );
-                  break;
-                case "Change Password":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
-                  );
-                  break;
-                case "Forgot Password":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
-                  );
-                  break;
-                case "Notifications":
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const NotificationsPage()),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem(
-                value: "Edit Profile",
-                child: Text("Edit Profile"),
-              ),
-              const PopupMenuItem(
-                value: "Change Password",
-                child: Text("Change Password"),
-              ),
-              const PopupMenuItem(
-                value: "Forgot Password",
-                child: Text("Forgot Password"),
-              ),
-              const PopupMenuItem(
-                value: "Notifications",
-                child: Text("Notifications"),
-              ),
-            ],
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () => _pickAndUploadImage(),
-              child: Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: imageUrl.isNotEmpty
-                      ? NetworkImage(imageUrl)
-                      : const AssetImage("assets/images/profile_placeholder.png") as ImageProvider,
+            // New Profile Header Layout - Image left, details right
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left side - Profile Image
+                  GestureDetector(
+                    onTap: () => _pickAndUploadImage(),
+                    child: CircleAvatar(
+                      radius: 45,
+                      backgroundImage: imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : const AssetImage("assets/images/profile_placeholder.png") as ImageProvider,
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 16),
+                  
+                  // Right side - User Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // User name
+                        Text(
+                          currentUser != null
+                              ? "${currentUser!.firstName} ${currentUser!.lastName}"
+                              : "Student Name",
+                          style: const TextStyle(
+                            fontSize: 20, 
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        
+                        // Student number
+                        Text(
+                          currentUser != null && currentUser!.student != null
+                              ? "Student Number: ${currentUser!.student!.studentNumber}"
+                              : "Student Number: ",
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        
+                        // Student level
+                        Text(
+                          currentUser != null && currentUser!.student != null
+                              ? "Level: ${currentUser!.student!.level}"
+                              : "Level: ",
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+            
+            // Menu items section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Academic",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            // Display student name (firstName + lastName)
-            Text(
-              currentUser != null
-                  ? "${currentUser!.firstName} ${currentUser!.lastName}"
-                  : "Student Name",
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-            // Display student number
-            Text(
-              currentUser != null && currentUser!.student != null
-                  ? "Student Number: ${currentUser!.student!.studentNumber}"
-                  : "Student Number: ",
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 5),
-            // Display student level
-            Text(
-              currentUser != null && currentUser!.student != null
-                  ? "Level: ${currentUser!.student!.level}"
-                  : "Level: ",
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 15),
-            // Your menu items below
+            // Academic menu items
             _buildMenuItem(Icons.book, "Student Materials", () {
               Navigator.push(
                 context,
@@ -175,12 +171,57 @@ class _ProfileTabState extends State<ProfileTab> {
               );
             }),
             _buildMenuItem(Icons.warning, "Ragging Causes", () {}),
+            
+            // Settings section header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Settings",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+            ),
+            // Settings menu items as tiles
+            _buildMenuItem(Icons.person, "Edit Profile", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditProfilePage()),
+              );
+            }),
+            _buildMenuItem(Icons.lock, "Change Password", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
+              );
+            }),
+            _buildMenuItem(Icons.password, "Forgot Password", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+              );
+            }),
+            _buildMenuItem(Icons.notifications, "Notifications", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsPage()),
+              );
+            }),
+            
+            // Logout section with some spacing
+            const SizedBox(height: 10),
             _buildMenuItem(
               Icons.logout,
               "Log Out",
-                  () => _showLogoutDialog(context),
+              () => _showLogoutDialog(context),
               isLogout: true,
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

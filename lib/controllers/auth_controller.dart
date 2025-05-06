@@ -258,6 +258,180 @@ class AuthController {
     }
   }
 
+  // Add these methods to your existing auth_controller.dart file
+
+  /// Verify student number for password reset
+  Future<Map<String, dynamic>> verifyStudentNumber(String studentNumber) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/password-reset/verify-student'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'studentNumber': studentNumber}),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 200) {
+        return {'success': true, 'exists': data['exists']};
+      } else {
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Failed to verify student number'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Verify email for password reset
+  Future<Map<String, dynamic>> verifyEmail(String studentNumber, String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/password-reset/verify-email'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'studentNumber': studentNumber, 'email': email}),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 200) {
+        return {
+          'success': true,
+          'valid': data['valid'],
+          'userId': data['userId']
+        };
+      } else {
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Failed to verify email'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Send OTP for password reset
+  Future<Map<String, dynamic>> sendPasswordResetOtp(String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/password-reset/send-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body);
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Failed to send OTP'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Verify OTP for password reset
+  Future<Map<String, dynamic>> verifyPasswordResetOtp(String email, String otp) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/password-reset/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'otp': otp}),
+      );
+
+      if (res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body);
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Failed to verify OTP'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Reset user password
+  Future<Map<String, dynamic>> resetPassword(String email, String newPassword) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/password-reset/reset'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'newPassword': newPassword}),
+      );
+
+      if (res.statusCode == 200) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(res.body);
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Failed to reset password'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Change password for logged-in user
+Future<Map<String, dynamic>> changePassword(String currentPassword, String newPassword) async {
+  try {
+    // Get current user
+    User? user = _auth.currentUser;
+    
+    if (user == null || user.email == null) {
+      return {'success': false, 'error': 'User not logged in or email is missing'};
+    }
+    
+    // First, get a fresh ID token
+    String? idToken = await user.getIdToken(true);
+    
+    if (idToken == null) {
+      return {'success': false, 'error': 'Failed to get ID token'};
+    }
+    
+    // Call the backend API to change the password
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/password-change/change'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'idToken': idToken,
+        'currentPassword': currentPassword,
+        'newPassword': newPassword
+      }),
+    );
+
+    print('Password change response status: ${response.statusCode}');
+    print('Password change response body: ${response.body}');
+    
+    final data = jsonDecode(response.body);
+    
+    if (response.statusCode == 200) {
+      return {'success': true};
+    } else {
+      return {
+        'success': false,
+        'error': data['error'] ?? 'Failed to change password'
+      };
+    }
+  } on FirebaseAuthException catch (e) {
+    print('FirebaseAuthException: ${e.code}');
+    String errorMessage = getFirebaseErrorMessage(e.code);
+    return {'success': false, 'error': errorMessage};
+  } catch (e) {
+    print('Error changing password: $e');
+    return {'success': false, 'error': e.toString()};
+  }
+}
+
 }
 
 
