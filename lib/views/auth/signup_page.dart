@@ -1,5 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
+import '../../controllers/auth_controller.dart';
+import 'login_page.dart';
+import 'otp_verification_page.dart'; // << Add this
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -7,14 +12,127 @@ class StudentSignupPage extends StatefulWidget {
 }
 
 class _StudentSignupPageState extends State<StudentSignupPage> {
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController studentNumberController = TextEditingController();
+  final TextEditingController phoneNoController = TextEditingController();
+
   String? selectedLevel;
-  final List<String> levels = [
-    "Level 1",
-    "Level 2",
-    "Level 3",
-    "Level 4",
-    "Level 5",
-  ];
+  String? selectedDepartment;
+  String? selectedFaculty;
+
+  final List<String> levels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"];
+  List<String> departments = [];
+  List<String> faculties = [];
+
+  String errorMessage = "";
+  bool isLoading = false;
+  final AuthController authController = AuthController();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchDropdownData();
+  }
+
+  Future<void> fetchDropdownData() async {
+    try {
+      final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
+      final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
+
+      if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
+        final List<dynamic> depData = jsonDecode(depResponse.body);
+        final List<dynamic> facData = jsonDecode(facResponse.body);
+
+        setState(() {
+          departments = depData.map((e) => e['deptName'].toString()).toList();
+          faculties = facData.map((e) => e['facultyName'].toString()).toList();
+        });
+
+        //debug
+        print("Departments: $departments");
+        print("Faculties: $faculties");
+
+      } else {
+        print("Failed to load dropdown data");
+      }
+    } catch (e) {
+      print("Error fetching dropdown data: $e");
+    }
+  }
+
+  Future<void> initiateSignupWithOtp() async {
+    setState(() {
+      errorMessage = "";
+      isLoading = true;
+    });
+
+    final email = emailController.text.trim();
+
+    // ✅ Check for empty fields
+    if (firstNameController.text.trim().isEmpty ||
+        lastNameController.text.trim().isEmpty ||
+        email.isEmpty ||
+        passwordController.text.trim().isEmpty ||
+        studentNumberController.text.trim().isEmpty ||
+        selectedDepartment == null ||
+        selectedFaculty == null ||
+        phoneNoController.text.trim().isEmpty ||
+        selectedLevel == null) {
+      setState(() {
+        errorMessage = "All fields are required.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    // ✅ Enforce university email restriction
+    if (!email.endsWith('@stu.kln.ac.lk')) {
+      setState(() {
+        errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    // ✅ Send OTP
+    final otpResponse = await authController.sendOtp(email);
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (otpResponse['success']) {
+      final signupData = {
+        "firstName": firstNameController.text.trim(),
+        "lastName": lastNameController.text.trim(),
+        "email": email,
+        "password": passwordController.text.trim(),
+        "studentNumber": studentNumberController.text.trim(),
+        "studentLevel": selectedLevel!,
+        "department": selectedDepartment!,
+        "faculty": selectedFaculty!,
+        "phoneNo": phoneNoController.text.trim()
+      };
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OTPVerificationPage(
+            email: email,
+            signupData: signupData,
+          ),
+        ),
+      );
+    } else {
+      setState(() {
+        errorMessage = otpResponse['error'] ?? "Failed to send OTP.";
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +143,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
           children: [
             Icon(Icons.person_add, color: Colors.white),
             SizedBox(width: 8),
-            Text(
-              "Student Signup",
-              style: TextStyle(color: Colors.white, fontSize: 25),
-            ),
+            Text("Student Signup", style: TextStyle(color: Colors.white, fontSize: 25)),
           ],
         ),
         backgroundColor: AppColors.primaryColor,
@@ -51,114 +166,136 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               ),
               SizedBox(height: 24),
 
-              // First Name Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "First Name",
-                  prefixIcon: Icon(Icons.person, color: Colors.black),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("First Name", Icons.person, firstNameController),
+              SizedBox(height: 16),
+              buildTextField("Last Name", Icons.person, lastNameController),
+              SizedBox(height: 16),
+              buildTextField("Email", Icons.email, emailController),
               SizedBox(height: 16),
 
-              // Email Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              // Level Dropdown
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: "Level",
                   prefixIcon: Icon(Icons.school, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 value: selectedLevel,
-                items:
-                    levels.map((level) {
-                      return DropdownMenuItem(value: level, child: Text(level));
-                    }).toList(),
+                items: levels.map((level) => DropdownMenuItem(value: level, child: Text(level))).toList(),
+                onChanged: (value) => setState(() => selectedLevel = value),
+              ),
+              SizedBox(height: 16),
+
+              buildTextField("Student Number", Icons.badge, studentNumberController),
+              SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: "Department",
+                  prefixIcon: Icon(Icons.business, color: AppColors.primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                value: selectedDepartment,
+                items: departments.isEmpty
+                    ? [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text("No departments available"),
+                  )
+                ]
+                    : departments.map((dep) {
+                  return DropdownMenuItem(
+                    value: dep,
+                    child: Text(dep),
+                  );
+                }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    selectedLevel = value;
+                    selectedDepartment = value;
                   });
                 },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a department";
+                  }
+                  return null;
+                },
               ),
+
               SizedBox(height: 16),
 
-              // Contact Number Field
-              TextField(
+              DropdownButtonFormField<String>(
                 decoration: InputDecoration(
-                  labelText: "Contact Number",
-                  prefixIcon: Icon(Icons.phone, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  labelText: "Faculty",
+                  prefixIcon: Icon(Icons.school_outlined, color: AppColors.primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                keyboardType: TextInputType.phone,
+                value: selectedFaculty,
+                items: faculties.isEmpty
+                    ? [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text("No faculties available"),
+                  )
+                ]
+                    : faculties.map((fac) {
+                  return DropdownMenuItem(
+                    value: fac,
+                    child: Text(fac),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedFaculty = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a faculty";
+                  }
+                  return null;
+                },
               ),
+
               SizedBox(height: 16),
 
-              // University ID Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "University ID",
-                  prefixIcon: Icon(Icons.badge, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("Phone Number", Icons.phone, phoneNoController, isPhone: true),
               SizedBox(height: 16),
-
-              // Password Field
-              TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
+              buildTextField("Password", Icons.lock, passwordController, isPassword: true),
               SizedBox(height: 24),
 
-              // Signup Button
+              if (errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    errorMessage,
+                    style: TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Handle Signup
-                  },
+                  onPressed: isLoading ? null : initiateSignupWithOtp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     padding: EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text("Sign Up", style: AppTextStyles.button),
+                  child: isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text("Sign Up", style: AppTextStyles.button),
                 ),
               ),
               SizedBox(height: 24),
 
-              // Login Navigation
               Center(
                 child: GestureDetector(
                   onTap: () {
-                    // Navigate to Login Page
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
                   },
                   child: Text.rich(
                     TextSpan(
@@ -181,6 +318,20 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget buildTextField(String label, IconData icon, TextEditingController controller,
+      {bool isPassword = false, bool isPhone = false}) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword,
+      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.primaryColor),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

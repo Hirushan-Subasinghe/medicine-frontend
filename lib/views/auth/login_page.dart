@@ -172,6 +172,32 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     SizedBox(height: 24),
+
+                    // ✅ "Don't have an account? Register" Text
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => StudentSignupPage()),
+                        );
+                      },
+                      child: Text.rich(
+                        TextSpan(
+                          text: "Don't have an account? ",
+                          style: AppTextStyles.body,
+                          children: [
+                            TextSpan(
+                              text: "Register",
+                              style: TextStyle(
+                                color: AppColors.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 30),
                   ],
                 ),
               ),
