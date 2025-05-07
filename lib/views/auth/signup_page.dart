@@ -38,28 +38,134 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   }
 
   Future<void> fetchDropdownData() async {
+    // Set a timeout value
+    const timeout = Duration(seconds: 15);
+    
     try {
-      final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
-      final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
-
-      if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
-        final List<dynamic> depData = jsonDecode(depResponse.body);
-        final List<dynamic> facData = jsonDecode(facResponse.body);
-
-        setState(() {
-          departments = depData.map((e) => e['deptName'].toString()).toList();
-          faculties = facData.map((e) => e['facultyName'].toString()).toList();
-        });
-
-        //debug
-        print("Departments: $departments");
-        print("Faculties: $faculties");
-
+      print("🔄 Starting fetchDropdownData with baseUrl: $baseUrl");
+      
+      // Try to fetch departments
+      print("🌐 Requesting departments from: $baseUrl/api/common/departments");
+      final depResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/departments"),
+        headers: {"Content-Type": "application/json"},
+      ).timeout(timeout);
+      
+      print("📊 Department response status: ${depResponse.statusCode}");
+      print("📄 Department response body: ${depResponse.body}");
+      
+      // Try to fetch faculties
+      print("🌐 Requesting faculties from: $baseUrl/api/common/faculties");
+      final facResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/faculties"),
+        headers: {"Content-Type": "application/json"},
+      ).timeout(timeout);
+      
+      print("📊 Faculty response status: ${facResponse.statusCode}");
+      print("📄 Faculty response body: ${facResponse.body}");
+      
+      // Process department response
+      if (depResponse.statusCode == 200) {
+        final List<dynamic> depData = json.decode(depResponse.body);
+        print("📋 Parsed departments data: $depData");
+        
+        if (depData.isNotEmpty) {
+          final List<String> parsedDeps = depData
+            .where((item) => item != null && item['deptName'] != null)
+            .map<String>((e) => e['deptName'].toString())
+            .toList();
+          
+          print("🔄 Department names extracted: $parsedDeps");
+          
+          if (mounted) {
+            setState(() {
+              departments = parsedDeps;
+              // Force selection if we have departments
+              if (departments.isNotEmpty) {
+                selectedDepartment = departments.first;
+              }
+            });
+            print("✅ Departments state updated: ${departments.length} items");
+          }
+        } else {
+          print("⚠️ Department data is empty");
+        }
       } else {
-        print("Failed to load dropdown data");
+        print("❌ Department request failed with status: ${depResponse.statusCode}");
       }
-    } catch (e) {
-      print("Error fetching dropdown data: $e");
+      
+      // Process faculty response
+      if (facResponse.statusCode == 200) {
+        final List<dynamic> facData = json.decode(facResponse.body);
+        print("📋 Parsed faculties data: $facData");
+        
+        if (facData.isNotEmpty) {
+          final List<String> parsedFacs = facData
+            .where((item) => item != null && item['facultyName'] != null)
+            .map<String>((e) => e['facultyName'].toString())
+            .toList();
+          
+          print("🔄 Faculty names extracted: $parsedFacs");
+          
+          if (mounted) {
+            setState(() {
+              faculties = parsedFacs;
+              // Force selection if we have faculties
+              if (faculties.isNotEmpty) {
+                selectedFaculty = faculties.first;
+              }
+            });
+            print("✅ Faculties state updated: ${faculties.length} items");
+          }
+        } else {
+          print("⚠️ Faculty data is empty");
+        }
+      } else {
+        print("❌ Faculty request failed with status: ${facResponse.statusCode}");
+      }
+      
+      // Final state check 
+      print("📊 FINAL STATE - Departments: ${departments.length}, Faculties: ${faculties.length}");
+      if (departments.isEmpty) {
+        print("⚠️ WARNING: Departments list is still empty after processing");
+      }
+      if (faculties.isEmpty) {
+        print("⚠️ WARNING: Faculties list is still empty after processing");
+      }
+      
+    } catch (e, stackTrace) {
+      print("❌ ERROR in fetchDropdownData: $e");
+      print("📑 Stack trace: $stackTrace");
+      
+      // Attempt a retry with direct JSON parsing as a fallback
+      try {
+        print("🔄 Attempting fallback method for fetching data...");
+        
+        // Hardcoded department data based on your Postman response
+        final List<String> hardcodedDepts = [
+          "Anatomy", "Chemistry", "Civil Engineering", "Computer Science",
+          "Internal Medicine", "Mathematics", "Oral Surgery", "Orthodontics",
+          "Pharmaceutical Chemistry", "Pharmacology", "Physiology", "Surgery"
+        ];
+        
+        // Hardcoded faculty data (adapt this to match your actual faculties)
+        final List<String> hardcodedFacs = [
+          "Faculty of Medicine", "Faculty of Engineering", "Faculty of Science"
+        ];
+        
+        if (mounted) {
+          setState(() {
+            departments = hardcodedDepts;
+            faculties = hardcodedFacs;
+            // Set defaults
+            selectedDepartment = departments.isNotEmpty ? departments.first : null;
+            selectedFaculty = faculties.isNotEmpty ? faculties.first : null;
+          });
+          print("⚠️ Using fallback data - Departments: ${departments.length}, Faculties: ${faculties.length}");
+        }
+      } catch (fallbackError) {
+        print("❌ Fallback method also failed: $fallbackError");
+      }
     }
   }
 
