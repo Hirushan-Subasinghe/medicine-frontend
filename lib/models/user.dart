@@ -26,6 +26,8 @@ class UserModel {
   final String phoneNo;
   final String profileImgUrl;
   final StudentData? student;
+  final DateTime? createdAt;  // New field for creation timestamp
+  final DateTime? updatedAt;  // New field for update timestamp
 
   UserModel({
     required this.userId,
@@ -35,6 +37,8 @@ class UserModel {
     required this.phoneNo,
     required this.profileImgUrl,
     this.student,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -48,19 +52,36 @@ class UserModel {
       student: json['student'] != null
           ? StudentData.fromJson(json['student'])
           : null,
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt'])
+          : null,
     );
   }
 
-  // A method to update the profile image if needed
-  UserModel copyWith({String? profileImgUrl}) {
+  // A method to update the profile data
+  UserModel copyWith({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? phoneNo,
+    String? profileImgUrl,
+    StudentData? student,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
     return UserModel(
-      userId: userId,
-      firstName: firstName,
-      lastName: lastName,
-      email: email,
-      phoneNo: phoneNo,
+      userId: this.userId,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      email: email ?? this.email,
+      phoneNo: phoneNo ?? this.phoneNo,
       profileImgUrl: profileImgUrl ?? this.profileImgUrl,
-      student: student,
+      student: student ?? this.student,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

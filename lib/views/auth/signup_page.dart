@@ -18,12 +18,11 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController studentNumberController = TextEditingController();
   final TextEditingController phoneNoController = TextEditingController();
+  final TextEditingController academicYearController = TextEditingController();
 
-  String? selectedLevel;
   String? selectedDepartment;
   String? selectedFaculty;
 
-  final List<String> levels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"];
   List<String> departments = [];
   List<String> faculties = [];
 
@@ -35,6 +34,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   void initState() {
     super.initState();
     fetchDropdownData();
+    // Set default academic year to current year for new students
+    academicYearController.text = DateTime.now().year.toString();
   }
 
   Future<void> fetchDropdownData() async {
@@ -70,6 +71,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     });
 
     final email = emailController.text.trim();
+    final academicYear = academicYearController.text.trim();
 
     // ✅ Check for empty fields
     if (firstNameController.text.trim().isEmpty ||
@@ -80,9 +82,20 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         selectedDepartment == null ||
         selectedFaculty == null ||
         phoneNoController.text.trim().isEmpty ||
-        selectedLevel == null) {
+        academicYear.isEmpty) {
       setState(() {
         errorMessage = "All fields are required.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    // Validate academic year
+    final int? year = int.tryParse(academicYear);
+    final int currentYear = DateTime.now().year;
+    if (year == null || year < (currentYear - 6) || year > currentYear) {
+      setState(() {
+        errorMessage = "Please enter a valid academic year (${currentYear-6} to $currentYear)";
         isLoading = false;
       });
       return;
@@ -111,7 +124,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         "email": email,
         "password": passwordController.text.trim(),
         "studentNumber": studentNumberController.text.trim(),
-        "studentLevel": selectedLevel!,
+        "studentAcademicYear": academicYear, // Changed to use academic year instead of level
         "department": selectedDepartment!,
         "faculty": selectedFaculty!,
         "phoneNo": phoneNoController.text.trim()
@@ -173,15 +186,13 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               buildTextField("Email", Icons.email, emailController),
               SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: "Level",
-                  prefixIcon: Icon(Icons.school, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                value: selectedLevel,
-                items: levels.map((level) => DropdownMenuItem(value: level, child: Text(level))).toList(),
-                onChanged: (value) => setState(() => selectedLevel = value),
+              // Academic Year field instead of Level dropdown
+              buildTextField(
+                "Academic Year (Batch Year)", 
+                Icons.calendar_today, 
+                academicYearController,
+                isNumeric: true,
+                helperText: "Enter the year you started at the university"
               ),
               SizedBox(height: 16),
 
@@ -323,13 +334,18 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   }
 
   Widget buildTextField(String label, IconData icon, TextEditingController controller,
-      {bool isPassword = false, bool isPhone = false}) {
+      {bool isPassword = false, bool isPhone = false, bool isNumeric = false, String? helperText}) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
-      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      keyboardType: isNumeric 
+          ? TextInputType.number 
+          : isPhone 
+              ? TextInputType.phone 
+              : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helperText,
         prefixIcon: Icon(icon, color: AppColors.primaryColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),

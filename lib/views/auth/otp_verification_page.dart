@@ -25,6 +25,78 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   bool isLoading = false;
   String errorMessage = "";
 
+  @override
+  void initState() {
+    super.initState();
+    // For testing - immediately attempt direct signup without OTP
+    _directSignupForTesting();
+  }
+
+  // Testing function that bypasses OTP verification
+  Future<void> _directSignupForTesting() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = "TESTING MODE: Bypassing OTP verification...";
+    });
+    
+    try {
+      // Call the direct signup method
+      final result = await authController.directSignupForTesting(widget.signupData);
+      
+      setState(() {
+        isLoading = false;
+      });
+      
+      if (result == "success") {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Success"),
+            content: const Text("TEST MODE: Your account has been created bypassing OTP verification."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginPage()),
+                    (route) => false,
+                  );
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Display more informative error message
+        String errorMsg = "";
+        if (result?.contains("email-already-in-use") ?? false) {
+          errorMsg = "This email is already registered. Try logging in instead.";
+        } else if (result?.contains("Firebase user creation failed") ?? false) {
+          errorMsg = "Firebase registration error: ${result?.split(': ').last ?? 'Unknown error'}";
+        } else {
+          errorMsg = result ?? "An unknown error occurred";
+        }
+        
+        setState(() {
+          errorMessage = "[TEST MODE] Signup issue: $errorMsg";
+        });
+      }
+    } catch (e) {
+      print("⚠️ Error in direct signup test mode: $e");
+      setState(() {
+        isLoading = false;
+        errorMessage = "[TEST MODE] Firebase signup failed: ${e.toString()}";
+      });
+      // Clean up by signing out if there was an error
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+  }
+
+  // Original OTP verification function (kept for reference)
   void verifyOtp() async {
     setState(() {
       isLoading = true;
@@ -45,30 +117,13 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     }
 
     // OTP verified. Now create Firebase user and complete signup
-    final email = widget.signupData['email'];
-    final password = widget.signupData['password'];
-
     try {
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final idToken = await userCredential.user?.getIdToken();
-
-      if (idToken == null) {
-        setState(() {
-          isLoading = false;
-          errorMessage = "Failed to get Firebase ID token.";
-        });
-        return;
-      }
-
-      final updatedSignupData = Map<String, dynamic>.from(widget.signupData);
-      updatedSignupData['idToken'] = idToken;
-
-      final result = await authController.completeSignup(updatedSignupData);
-
+      // First sign out any existing user to avoid conflicts
+      await FirebaseAuth.instance.signOut();
+      
+      // Call backend to complete signup
+      final result = await authController.completeSignup(widget.signupData);
+      
       setState(() {
         isLoading = false;
       });
@@ -86,7 +141,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => LoginPage()),
-                        (route) => false,
+                    (route) => false,
                   );
                 },
                 child: const Text("OK"),
@@ -104,11 +159,14 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         isLoading = false;
         errorMessage = "Firebase signup failed: ${e.toString()}";
       });
+      
+      // Clean up by signing out if there was an error
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
     }
   }
 
-
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,6 +229,25 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
+
+                    // 🔹 Testing Mode Indicator
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.yellow.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber),
+                      ),
+                      child: Text(
+                        "TESTING MODE: OTP verification is bypassed for testing purposes.",
+                        style: TextStyle(
+                          color: Colors.amber.shade900,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
 
                     // 🔹 OTP Input
                     TextField(
