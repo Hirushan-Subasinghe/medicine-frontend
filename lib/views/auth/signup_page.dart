@@ -48,7 +48,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         final List<dynamic> facData = jsonDecode(facResponse.body);
 
         setState(() {
-          departments = depData.map((e) => e['deptName'].toString()).toList();
+          departments = depData.map((e) => e['departmentName'].toString()).toList();
           faculties = facData.map((e) => e['facultyName'].toString()).toList();
         });
 
