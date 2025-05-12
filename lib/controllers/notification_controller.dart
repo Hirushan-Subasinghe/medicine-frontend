@@ -15,9 +15,7 @@ class NotificationController {
 
       if (idToken == null) {
         throw Exception("Not authenticated");
-      }
-
-      final response = await http.get(
+      }      final response = await http.get(
         Uri.parse('$baseUrl/api/notifications'),
         headers: {
           'Content-Type': 'application/json',
@@ -27,6 +25,11 @@ class NotificationController {
 
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
+        print('Notifications API response: ${data.length} notifications received');
+        // Log the first notification if exists
+        if (data.isNotEmpty) {
+          print('First notification: ${data[0]['title']} (ID: ${data[0]['notificationId']})');
+        }
         return data.map((item) => NotificationModel.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load notifications: ${response.statusCode}');
@@ -83,6 +86,7 @@ class NotificationController {
         },
       );
 
+      // Return true if the API call was successful
       return response.statusCode == 200;
     } catch (e) {
       print('Error marking notification as read: $e');
@@ -115,35 +119,6 @@ class NotificationController {
       }
     } catch (e) {
       print('Error fetching important notifications: $e');
-      return [];
-    }
-  }
-
-  // Get spam notifications
-  Future<List<NotificationModel>> getSpamNotifications() async {
-    try {
-      String? idToken = await _auth.currentUser?.getIdToken();
-
-      if (idToken == null) {
-        throw Exception("Not authenticated");
-      }
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/notifications/spam'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        List<dynamic> data = jsonDecode(response.body);
-        return data.map((item) => NotificationModel.fromJson(item)).toList();
-      } else {
-        throw Exception('Failed to load spam notifications');
-      }
-    } catch (e) {
-      print('Error fetching spam notifications: $e');
       return [];
     }
   }

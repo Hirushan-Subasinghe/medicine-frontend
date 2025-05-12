@@ -9,19 +9,41 @@ class NotificationTab extends StatefulWidget {
   _NotificationTabState createState() => _NotificationTabState();
 }
 
-class _NotificationTabState extends State<NotificationTab> {
+class _NotificationTabState extends State<NotificationTab> with SingleTickerProviderStateMixin {
   final NotificationController _notificationController = NotificationController();
 
   List<NotificationModel> _allNotifications = [];
   List<NotificationModel> _unreadNotifications = [];
   List<NotificationModel> _importantNotifications = [];
-  List<NotificationModel> _spamNotifications = [];
 
   bool _isLoading = true;
   bool _firstLoadDone = false;
   int _selectedTabIndex = 0;
 
-  final List<String> _tabs = ['All', 'Unread', 'Important', 'Spam'];
+  final List<String> _tabs = ['All', 'Unread', 'Important'];
+  late TabController _tabController;
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(_handleTabChange);
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _selectedTabIndex = _tabController.index;
+      });
+      _loadTabData(_tabController.index);
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -46,9 +68,6 @@ class _NotificationTabState extends State<NotificationTab> {
         case 2:
           await _loadImportantNotifications();
           break;
-        case 3:
-          await _loadSpamNotifications();
-          break;
       }
     } catch (e) {
       print('Error loading tab data: $e');
@@ -60,6 +79,7 @@ class _NotificationTabState extends State<NotificationTab> {
   Future<void> _loadAllNotifications() async {
     try {
       _allNotifications = await _notificationController.getAllNotifications();
+      setState(() {}); // Update UI with new data
     } catch (e) {
       print('Error loading all notifications: $e');
     }
@@ -68,6 +88,7 @@ class _NotificationTabState extends State<NotificationTab> {
   Future<void> _loadUnreadNotifications() async {
     try {
       _unreadNotifications = await _notificationController.getUnreadNotifications();
+      setState(() {}); // Update UI with new data
     } catch (e) {
       print('Error loading unread notifications: $e');
     }
@@ -76,19 +97,11 @@ class _NotificationTabState extends State<NotificationTab> {
   Future<void> _loadImportantNotifications() async {
     try {
       _importantNotifications = await _notificationController.getImportantNotifications();
+      setState(() {}); // Update UI with new data
     } catch (e) {
       print('Error loading important notifications: $e');
     }
   }
-
-  Future<void> _loadSpamNotifications() async {
-    try {
-      _spamNotifications = await _notificationController.getSpamNotifications();
-    } catch (e) {
-      print('Error loading spam notifications: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,67 +110,59 @@ class _NotificationTabState extends State<NotificationTab> {
         title: Text("Notifications", style: TextStyle(color: Colors.white, fontSize: 25)),
         backgroundColor: AppColors.primaryColor,
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: [
+            Tab(
+              text: "All",
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Unread"),
+                  if (_unreadNotifications.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          _unreadNotifications.length.toString(),
+                          style: TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Tab(
+              text: "Important",
+            ),
+          ],
+          onTap: (index) {
+            _loadTabData(index);
+          },
+        ),
       ),
       body: Column(
         children: [
-          Container(
-            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            color: AppColors.primaryColor,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(_tabs.length, (index) {
-                final isSelected = _selectedTabIndex == index;
-                return GestureDetector(
-                  onTap: () async {
-                    setState(() => _selectedTabIndex = index);
-                    await _loadTabData(index);
-                  },
-                  child: AnimatedContainer(
-                    duration: Duration(milliseconds: 200),
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.activeTabBackground
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          _tabs[index],
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (index == 1 && _unreadNotifications.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: Container(
-                              padding: EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                _unreadNotifications.length.toString(),
-                                style: TextStyle(color: Colors.white, fontSize: 10),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-
           // Body
           Expanded(
-            child: AnimatedSwitcher(
-              duration: Duration(milliseconds: 300),
-              child: _buildNotificationList(getCurrentTabData()),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildNotificationList(_allNotifications),
+                _buildNotificationList(_unreadNotifications),
+                _buildNotificationList(_importantNotifications),
+              ],
             ),
           ),
         ],
@@ -171,8 +176,6 @@ class _NotificationTabState extends State<NotificationTab> {
         return _unreadNotifications;
       case 2:
         return _importantNotifications;
-      case 3:
-        return _spamNotifications;
       default:
         return _allNotifications;
     }
@@ -193,24 +196,26 @@ class _NotificationTabState extends State<NotificationTab> {
       ),
     );
   }
-
   Widget _buildNotificationItem(NotificationModel notification) {
     return InkWell(
       onTap: () async {
-        if (!notification.isRead) {
-          await _notificationController.markAsRead(notification.notificationId);
-        }
-
-        Navigator.push(
+        // Navigate to detail screen
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => NotificationDetailScreen(notification: notification),
           ),
-        ).then((_) async {
-          // ✅ Reload both All and Unread lists after returning
-          await _loadAllNotifications();
-          await _loadUnreadNotifications();
-          setState(() {});
+        ).then((_) async {          
+          // Reload data for all tabs
+          await Future.wait([
+            _loadAllNotifications(),
+            _loadUnreadNotifications(),
+            _loadImportantNotifications(),
+          ]);
+          
+          if (mounted) {
+            setState(() {}); // Update UI to reflect changes
+          }
         });
       },
       child: Container(
