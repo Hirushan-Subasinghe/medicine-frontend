@@ -171,12 +171,13 @@ class _EmergencyFabMenuState extends State<EmergencyFabMenu> with SingleTickerPr
     // Send the emergency alert
     final ragAlertService = RagAlertService();
     Map<String, dynamic> result;
-      try {
+    
+    try {
       // Send the emergency alert
       result = await ragAlertService.sendEmergencyAlert();
       
       // Make sure to close the loading dialog after the call completes
-      if (Navigator.of(loadingContext).mounted && Navigator.canPop(loadingContext)) {
+      if (Navigator.canPop(loadingContext)) {
         Navigator.of(loadingContext).pop();
       }
     } catch (e) {
@@ -187,20 +188,13 @@ class _EmergencyFabMenuState extends State<EmergencyFabMenu> with SingleTickerPr
       };
       
       // Close loading dialog on error too
-      if (Navigator.of(loadingContext).mounted && Navigator.canPop(loadingContext)) {
-        Navigator.of(loadingContext).pop();
-      }
-    } finally {
-      // In case any other error occurred, ensure the dialog is closed
-      if (Navigator.of(loadingContext).mounted && Navigator.canPop(loadingContext)) {
+      if (Navigator.canPop(loadingContext)) {
         Navigator.of(loadingContext).pop();
       }
     }
     
-    // Show appropriate feedback based on the result - only if context is still valid
-    if (mounted) {
-      _showResultDialog(result);
-    }
+    // Show appropriate feedback based on the result
+    _showResultDialog(result);
   }
   
   // Shows the success or error dialog based on the result

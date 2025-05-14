@@ -34,13 +34,13 @@ class RagAlertService {
     required List<String> emergencyContactNumbers,
   }) async {
     bool allSent = true;
-      // Create the alert message
+    
+    // Create the alert message
     final String message = _createAlertMessage(
       studentName: studentName,
       studentId: studentId,
       location: location,
       coordinates: coordinates,
-      // No alert ID available in this method as it's used before database creation
     );
     
     // Send to all emergency contacts
@@ -63,30 +63,19 @@ class RagAlertService {
     
     return allSent;
   }
-    /// Create the alert message text
+  
+  /// Create the alert message text
   String _createAlertMessage({
     required String studentName,
     required String studentId,
     required String location,
     String? coordinates,
-    String? alertId,
   }) {
     final String locationInfo = coordinates != null 
-        ? '$location' 
+        ? '$location (Coordinates: $coordinates)' 
         : location;
-    
-    // Create Google Maps link with coordinates if available
-    String mapsLink = '';
-    if (coordinates != null) {
-      final List<String> parts = coordinates.split(',');
-      if (parts.length == 2) {
-        mapsLink = 'https://www.google.com/maps?q=${parts[0]},${parts[1]}';
-      }
-    }
-    
-    String alertIdInfo = alertId != null ? ' (Alert ID: $alertId)' : '';
-    
-    return 'RAGGING ALERT$alertIdInfo:\n$studentName (ID: $studentId) has reported a ragging incident at $locationInfo.\n\nView Location: $mapsLink\n\nPlease respond immediately.';
+        
+    return 'RAGGING ALERT: $studentName (ID: $studentId) has reported a ragging incident at $locationInfo. Please respond immediately.';
   }
   
   /// Send a test alert message
@@ -188,7 +177,8 @@ class RagAlertService {
       };
     }
   }
-    /// Send an emergency alert with database update
+  
+  /// Send an emergency alert with database update
   /// Returns a map with success status and any error messages
   Future<Map<String, dynamic>> sendEmergencyAlert() async {
     Map<String, dynamic> result = {
@@ -243,7 +233,7 @@ class RagAlertService {
         // Continue even if we can't get location
       }
       
-      // We'll still get the user information for fallback purposes
+      // 2. Get current user details
       print('Step 2: Getting user information...');
       Map<String, dynamic> userResult;
       try {
@@ -282,7 +272,7 @@ class RagAlertService {
         };
       }
       
-      // IMPORTANT: 3. Create alert in database FIRST, before preparing SMS
+      // 3. Create alert in database
       print('Step 3: Creating alert in database...');
       bool databaseUpdated = false;
       Map<String, dynamic> alertRecord = {};
@@ -355,45 +345,18 @@ class RagAlertService {
         
         print('Using student info from user service: Name=$studentName, ID=$studentId');
       }
-        // Update with DB record if available (this overrides the user service data)
+      
+      // Update with DB record if available (this overrides the user service data)
       if (databaseUpdated && alertRecord.isNotEmpty) {
-        // Print entire alert record for debugging
-        print('ALERT RECORD FROM DATABASE:');
-        alertRecord.forEach((key, value) {
-          print('  $key: $value');
-        });
-        
         // Override with database information if available
         if (alertRecord['studentName'] != null && alertRecord['studentName'].toString().isNotEmpty) {
           studentName = alertRecord['studentName'].toString();
           print('Using student name from database: $studentName');
         }
         
-        // CRITICAL: Extract the studentId from the RAG alert database
-        print('Checking for studentId in database record');
-        if (alertRecord['studentId'] != null) {
+        if (alertRecord['studentId'] != null && alertRecord['studentId'].toString().isNotEmpty) {
           studentId = alertRecord['studentId'].toString();
-          print('Found studentId in database record: $studentId');
-        } else if (alertRecord['data'] != null && alertRecord['data']['studentId'] != null) {
-          // Try nested data structure
-          studentId = alertRecord['data']['studentId'].toString();
-          print('Found studentId in nested data: $studentId');
-        } else {
-          print('WARNING: studentId not found in expected locations');
-          print('Attempting to find studentId in any field of the record...');
-          
-          bool found = false;
-          alertRecord.forEach((key, value) {
-            if (key.toLowerCase().contains('student') && key.toLowerCase().contains('id')) {
-              studentId = value.toString();
-              print('Found potential studentId in field $key: $studentId');
-              found = true;
-            }
-          });
-          
-          if (!found) {
-            print('Could not find studentId in any field of the record');
-          }
+          print('Using student ID from database: $studentId');
         }
       }
       
@@ -427,83 +390,21 @@ class RagAlertService {
         if (alertRecord['alertDateTime'] != null) {
           alertDateTime = alertRecord['alertDateTime'].toString();
         }
-      }        // Format coordinates for better readability if available
-      String formattedCoordinates = coordinates ?? 'Unknown';
-      
-      // Make one more attempt to get the most recent alert if we don't have a good record
-      if (!databaseUpdated || alertRecord.isEmpty || alertId == 'Unknown') {
-        print('Attempting to fetch the most recent RAG alert from database...');
-        try {
-          // Fetch the latest alert
-          final latestAlertResult = await _ragAlertController.getLatestRagAlert();
-          
-          if (latestAlertResult['success'] && latestAlertResult['data'] != null) {
-            print('Successfully retrieved the latest RAG alert');
-            
-            // Update our record with the latest data
-            Map<String, dynamic> latestAlert = latestAlertResult['data'];
-            
-            // Print the entire latest alert record
-            print('LATEST ALERT FROM DATABASE:');
-            latestAlert.forEach((key, value) {
-              print('  $key: $value');
-            });
-            
-            // Update alertRecord with this latest data
-            alertRecord = latestAlert;
-            
-            // Update our alert ID and date/time
-            if (latestAlert['alertId'] != null) {
-              alertId = latestAlert['alertId'].toString();
-              print('Updated Alert ID from latest record: $alertId');
-            }
-            
-            if (latestAlert['alertDateTime'] != null) {
-              alertDateTime = latestAlert['alertDateTime'].toString();
-              print('Updated Date/Time from latest record: $alertDateTime');
-            }
-            
-            // Update studentId if available
-            if (latestAlert['studentId'] != null) {
-              studentId = latestAlert['studentId'].toString();
-              print('Updated Student ID from latest record: $studentId');
-            }
-            
-            // Update coordinates if available
-            if (latestAlert['latitude'] != null && latestAlert['longitude'] != null) {
-              coordinates = '${latestAlert['latitude']},${latestAlert['longitude']}';
-              formattedCoordinates = coordinates;
-              print('Updated Coordinates from latest record: $coordinates');
-            }
-            
-            databaseUpdated = true;
-          } else {
-            print('Failed to retrieve latest alert: ${latestAlertResult['error'] ?? 'Unknown error'}');
-          }
-        } catch (e) {
-          print('Error retrieving latest alert: $e');
-        }
       }
       
-      // 5. Create and send the SMS
-      print('Step 5: Creating and sending SMS with latest database information...');
-        // Add extra debug output to verify final student ID
-      print('FINAL VALUES FOR SMS:');
-      print('  Alert ID: $alertId');
-      print('  Date/Time: $alertDateTime');
-      print('  Student ID: $studentId');
-      print('  Location: $locationInfo');
-      print('  Coordinates: $formattedCoordinates');
-        // Use our improved _createAlertMessage method which includes Google Maps link
-      final alertMessage = _createAlertMessage(
-        studentName: studentName,
-        studentId: studentId,
-        location: locationInfo,
-        coordinates: formattedCoordinates,
-        alertId: alertId,
-      );
+      // Format coordinates for better readability if available
+      String formattedCoordinates = coordinates ?? 'Unknown';
       
-      print('  Final SMS Message: \n$alertMessage');
+      // 5. Create and send the SMS
+      print('Step 5: Creating and sending SMS...');
+      // Create a more detailed timestamped message with database details
+      final alertMessage = 'RAGGING ALERT (ID: $alertId):\n'
+          'Time: $alertDateTime\n'
+          'Student: $studentName\n'
+          'ID: $studentId\n'
+          'Location: $locationInfo\n'
+          'Coordinates: $formattedCoordinates\n\n'
+          'Please respond immediately.';
           
       // Store the message details for debugging and for the UI
       result['messageDetails'] = {
