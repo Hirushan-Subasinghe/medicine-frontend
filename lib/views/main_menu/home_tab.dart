@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../widgets/emergency_fab_menu.dart';
 
 class HomeTab extends StatelessWidget {
+  const HomeTab({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,8 +26,9 @@ class HomeTab extends StatelessWidget {
             _buildCategoriesSection(),
             _buildAdditionalSection(),
           ],
-        ),
-      ),
+        ),      ),
+      floatingActionButton: const EmergencyFabMenu(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -86,62 +90,91 @@ class HomeTab extends StatelessWidget {
         ],
       ),
     );
-  }  Widget _buildAdditionalSection() {
-    return Builder(
-      builder: (BuildContext context) {
-        return Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  }
+
+  Widget _buildCategoryItem(IconData icon, String label) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          // Handle category tap
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppColors.primaryColor, size: 32),
+            SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdditionalSection() {
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Tools & Features",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          Column(
             children: [
-              Text(
-                "Tools & Features",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              _buildFeatureCard(
+                "Academic Calendar",
+                "View important academic dates and events",
+                Icons.calendar_today,
               ),
-              SizedBox(height: 10),
-              GridView.count(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                children: [
-              _buildCategoryItem(Icons.calculate, "Calculator"),
-              _buildCategoryItem(Icons.library_books, "Library"),
-              _buildCategoryItem(Icons.support_agent, "Support"),
-              _buildCategoryItem(Icons.map, "Campus Map"),
-              _buildCategoryItem(Icons.assignment, "Assignments"),              _buildNavigationItem(context, Icons.sms, "SMS Test", '/twilio_test'),
-              _buildNavigationItem(context, Icons.warning_amber, "Ragging Alert", '/rag_alert_test'),
-                ],
+              _buildFeatureCard(
+                "Campus Map",
+                "Navigate around the campus easily",
+                Icons.map,
+              ),
+              _buildFeatureCard(
+                "Contact Faculty",
+                "Get in touch with your professors",
+                Icons.contact_phone,
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
-  Widget _buildCategoryItem(IconData icon, String label) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: AppColors.primaryColor.withOpacity(0.1),
-          child: Icon(icon, color: AppColors.primaryColor, size: 30),
+
+  Widget _buildFeatureCard(String title, String description, IconData icon) {
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppColors.primaryColor),
         ),
-        SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildNavigationItem(BuildContext context, IconData icon, String label, String route) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).pushNamed(route);
-      },
-      child: _buildCategoryItem(icon, label),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(description, style: TextStyle(fontSize: 12)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          // Handle feature tap
+        },
+      ),
     );
   }
 }

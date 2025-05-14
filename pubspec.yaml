@@ -39,6 +39,7 @@ dependencies:
   cloud_firestore: ^4.13.6
   firebase_messaging: ^14.7.9
   provider: ^6.1.1
+  url_launcher: ^6.2.5
   path_provider: ^2.1.5
   firebase_storage: ^11.6.5
   connectivity_plus: ^6.1.3
