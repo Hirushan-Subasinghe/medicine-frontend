@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';  // Import Provider package
 import 'controllers/map_controller.dart'; // Import your custom MapController
 import 'views/auth/login_page.dart';
 import 'views/main_menu/main_menu.dart';
+import 'views/test/twilio_test_page.dart'; // Import Twilio test page
+import 'views/rag_alert/rag_alert_test_page.dart'; // Import Rag Alert test page
 import 'core/constants.dart';
 
 void main() async {
@@ -23,10 +25,8 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context) {    return MaterialApp(
       title: 'Freshers Connect',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -41,6 +41,10 @@ class MyApp extends StatelessWidget {
           titleLarge: AppTextStyles.heading,
         ),
       ),
+      routes: {
+        '/twilio_test': (context) => const TwilioTestPage(),
+        '/rag_alert_test': (context) => const RagAlertTestPage(),
+      },
       home: AuthChecker(), // Check if user is logged in or not
     );
   }

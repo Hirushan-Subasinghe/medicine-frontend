@@ -86,37 +86,38 @@ class HomeTab extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Widget _buildAdditionalSection() {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Tools & Features",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 10),
-          GridView.count(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
+  }  Widget _buildAdditionalSection() {
+    return Builder(
+      builder: (BuildContext context) {
+        return Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                "Tools & Features",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              GridView.count(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                children: [
               _buildCategoryItem(Icons.calculate, "Calculator"),
               _buildCategoryItem(Icons.library_books, "Library"),
               _buildCategoryItem(Icons.support_agent, "Support"),
               _buildCategoryItem(Icons.map, "Campus Map"),
-              _buildCategoryItem(Icons.assignment, "Assignments"),
-              _buildCategoryItem(Icons.feedback, "Feedback"),
+              _buildCategoryItem(Icons.assignment, "Assignments"),              _buildNavigationItem(context, Icons.sms, "SMS Test", '/twilio_test'),
+              _buildNavigationItem(context, Icons.warning_amber, "Ragging Alert", '/rag_alert_test'),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
-
   Widget _buildCategoryItem(IconData icon, String label) {
     return Column(
       children: [
@@ -132,6 +133,15 @@ class HomeTab extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+  
+  Widget _buildNavigationItem(BuildContext context, IconData icon, String label, String route) {
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).pushNamed(route);
+      },
+      child: _buildCategoryItem(icon, label),
     );
   }
 }
