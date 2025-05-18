@@ -1,9 +1,9 @@
 // File: e:\Hiru\medicine\test\rag_alert_service_test.dart
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medicine/services/rag_alert_service.dart';
-import 'package:medicine/services/twilio_service.dart';
-import 'package:medicine/controllers/rag_alert_controller.dart';
+import 'package:freshers_connect/services/rag_alert_service.dart';
+import 'package:freshers_connect/services/twilio_service.dart';
+import 'package:freshers_connect/controllers/rag_alert_controller.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:geolocator/geolocator.dart';

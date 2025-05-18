@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:medicine/services/twilio_service.dart';
+import 'package:freshers_connect/services/twilio_service.dart';
 
 class TwilioTestPage extends StatefulWidget {
   const TwilioTestPage({super.key});

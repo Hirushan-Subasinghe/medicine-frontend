@@ -1,4 +1,4 @@
-import 'package:medicine/services/twilio_service.dart';
+import 'package:freshers_connect/services/twilio_service.dart';
 import '../controllers/rag_alert_controller.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';

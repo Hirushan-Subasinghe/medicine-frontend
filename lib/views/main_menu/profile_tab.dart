@@ -10,10 +10,10 @@ import '../../services/firebase_storage_service.dart';
 import '../auth/login_page.dart';
 
 // Import settings pages
-import 'package:medicine/views/settings/edit_profile.dart';
-import 'package:medicine/views/settings/change_password.dart';
-import 'package:medicine/views/settings/forgot_password.dart';
-import 'package:medicine/views/settings/notifications.dart';
+import 'package:freshers_connect/views/settings/edit_profile.dart';
+import 'package:freshers_connect/views/settings/change_password.dart';
+import 'package:freshers_connect/views/settings/forgot_password.dart';
+import 'package:freshers_connect/views/settings/notifications.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);

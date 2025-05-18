@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:medicine/views/auth/signup_page.dart';
+import 'package:freshers_connect/views/auth/signup_page.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
 import '../../controllers/auth_controller.dart';

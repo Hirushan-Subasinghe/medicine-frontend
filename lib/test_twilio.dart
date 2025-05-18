@@ -1,6 +1,6 @@
 // A simple test script to verify Twilio SMS functionality
 import 'dart:async';
-import 'package:medicine/services/twilio_service.dart';
+import 'package:freshers_connect/services/twilio_service.dart';
 
 void main() async {
   print('Starting Twilio SMS Test...');
