@@ -1,25 +1,11 @@
 import 'package:flutter/material.dart';
 
-// Choose the appropriate URL based on your testing environment:
-
-// For Android Emulator (this uses 10.0.2.2 which points to host's localhost):
-//const String baseUrl = "http://10.0.2.2:5002"; // Using test server port
+// Production API endpoint
+// const String baseUrl = "213.35.103.150"; 
 const String baseUrl = "http://213.35.103.150:80";
 
-// For iOS Simulator (uncomment if using iOS simulator):
-// const String baseUrl = "http://localhost:5002";
-
-// For Physical Device (uncomment and replace with your computer's IP address):
-// const String baseUrl = "http://192.168.x.x:5002"; // Replace with your actual IP
-
-// For testing directly on the same device as server:
-// const String baseUrl = "http://localhost:5002";
-
-// For local testing in emulator (uncomment to use local test server):
-// const String baseUrl = "http://10.0.2.2:5002";  
-
-// Debug mode (set to true to see detailed logging)
-const bool debugMode = true;
+// Debug mode (set to false in production)
+const bool debugMode = false;
 
 class AppColors {
   static const Color primaryColor = Color(0xFF2C5DE1);
@@ -63,9 +49,12 @@ class AppButtons {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
       ),
-      child: Text(text, style: AppTextStyles.button),
+      child: Text(
+        text,
+        style: AppTextStyles.button,
+      ),
     );
   }
 }

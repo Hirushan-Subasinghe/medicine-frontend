@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';  // Import Provider package
@@ -7,7 +8,10 @@ import 'views/auth/login_page.dart';
 import 'views/main_menu/main_menu.dart';
 import 'views/test/twilio_test_page.dart'; // Import Twilio test page
 import 'views/rag_alert/rag_alert_test_page.dart'; // Import Rag Alert test page
-import 'core/constants.dart';
+
+// Import both constant files
+import 'core/constants.dart' as dev_constants;
+import 'core/constants_prod.dart' as prod_constants;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,15 +34,15 @@ class MyApp extends StatelessWidget {
       title: 'Freshers Connect',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: AppColors.primaryColor,
-        scaffoldBackgroundColor: AppColors.backgroundColor,
+        primaryColor: kReleaseMode ? prod_constants.AppColors.primaryColor : dev_constants.AppColors.primaryColor,
+        scaffoldBackgroundColor: kReleaseMode ? prod_constants.AppColors.backgroundColor : dev_constants.AppColors.backgroundColor,
         colorScheme: ColorScheme.light(
-          primary: AppColors.primaryColor,
-          secondary: AppColors.primaryColor,
+          primary: kReleaseMode ? prod_constants.AppColors.primaryColor : dev_constants.AppColors.primaryColor,
+          secondary: kReleaseMode ? prod_constants.AppColors.primaryColor : dev_constants.AppColors.primaryColor,
         ),
         textTheme: TextTheme(
-          bodyLarge: AppTextStyles.body,
-          titleLarge: AppTextStyles.heading,
+          bodyLarge: kReleaseMode ? prod_constants.AppTextStyles.body : dev_constants.AppTextStyles.body,
+          titleLarge: kReleaseMode ? prod_constants.AppTextStyles.heading : dev_constants.AppTextStyles.heading,
         ),
       ),
       routes: {

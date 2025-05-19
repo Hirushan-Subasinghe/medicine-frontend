@@ -14,6 +14,8 @@ import 'package:freshers_connect/views/settings/edit_profile.dart';
 import 'package:freshers_connect/views/settings/change_password.dart';
 import 'package:freshers_connect/views/settings/forgot_password.dart';
 import 'package:freshers_connect/views/settings/notifications.dart';
+import '../diagnostics/diagnostic_page.dart';
+import '../../tools/network_monitor_page.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
@@ -205,11 +207,21 @@ class _ProfileTabState extends State<ProfileTab> {
                 context,
                 MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
               );
-            }),
-            _buildMenuItem(Icons.notifications, "Notifications", () {
+            }),            _buildMenuItem(Icons.notifications, "Notifications", () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const NotificationsPage()),
+              );
+            }),            _buildMenuItem(Icons.signal_cellular_alt, "Connection Diagnostics", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DiagnosticPage()),
+              );
+            }),
+            _buildMenuItem(Icons.network_check, "Network Monitor", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NetworkMonitorPage()),
               );
             }),
             
