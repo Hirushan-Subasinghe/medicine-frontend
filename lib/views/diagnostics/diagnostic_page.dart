@@ -224,7 +224,7 @@ class _DiagnosticPageState extends State<DiagnosticPage> {
                           const SizedBox(height: 12),
                           Text('Base URL: $baseUrl'),
                           const SizedBox(height: 8),
-                          Text('Debug Mode: ${debugMode ? 'Enabled' : 'Disabled'}'),
+                          Text('Debug Mode: ${kDebugMode ? 'Enabled' : 'Disabled'}'),
                         ],
                       ),
                     ),

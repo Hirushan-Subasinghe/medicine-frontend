@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
 import 'login_page.dart';
-import 'otp_verification_page.dart'; // << Add this
+import 'otp_verification_page.dart'; 
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -40,27 +40,51 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
   Future<void> fetchDropdownData() async {
     try {
+      print("🔍 Fetching dropdown data from: $baseUrl");
+      print("🔍 Department URL: $baseUrl/api/common/departments");
+      print("🔍 Faculty URL: $baseUrl/api/common/faculties");
+      
       final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
       final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
 
+      print("📊 Department response status: ${depResponse.statusCode}");
+      print("📊 Faculty response status: ${facResponse.statusCode}");
+
       if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
+        print("✅ Both API calls successful");
+        
         final List<dynamic> depData = jsonDecode(depResponse.body);
         final List<dynamic> facData = jsonDecode(facResponse.body);
+
+        print("📋 Raw department data length: ${depData.length}");
+        print("📋 Raw faculty data length: ${facData.length}");
+        
+        print("📋 First department item: ${depData.isNotEmpty ? depData[0] : 'No data'}");
+        print("📋 First faculty item: ${facData.isNotEmpty ? facData[0] : 'No data'}");
 
         setState(() {
           departments = depData.map((e) => e['departmentName'].toString()).toList();
           faculties = facData.map((e) => e['facultyName'].toString()).toList();
         });
 
-        //debug
-        print("Departments: $departments");
-        print("Faculties: $faculties");
+        print("✅ Parsed Departments (${departments.length}): $departments");
+        print("✅ Parsed Faculties (${faculties.length}): $faculties");
 
       } else {
-        print("Failed to load dropdown data");
+        print("❌ Failed to load dropdown data");
+        print("❌ Department response: ${depResponse.statusCode} - ${depResponse.body}");
+        print("❌ Faculty response: ${facResponse.statusCode} - ${facResponse.body}");
+        
+        // Show error message to user
+        setState(() {
+          errorMessage = "Failed to load dropdown data. Please check your internet connection.";
+        });
       }
     } catch (e) {
-      print("Error fetching dropdown data: $e");
+      print("❌ Error fetching dropdown data: $e");
+      setState(() {
+        errorMessage = "Network error: $e";
+      });
     }
   }
 
@@ -102,13 +126,13 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     }
 
     // ✅ Enforce university email restriction
-    if (!email.endsWith('@stu.kln.ac.lk')) {
-      setState(() {
-        errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
-        isLoading = false;
-      });
-      return;
-    }
+    // if (!email.endsWith('@stu.kln.ac.lk')) {
+    //   setState(() {
+    //     errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
+    //     isLoading = false;
+    //   });
+    //   return;
+    // }
 
     // ✅ Send OTP
     final otpResponse = await authController.sendOtp(email);

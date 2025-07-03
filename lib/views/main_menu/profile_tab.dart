@@ -26,6 +26,7 @@ class ProfileTab extends StatefulWidget {
 
 class _ProfileTabState extends State<ProfileTab> {
   UserModel? currentUser;
+  bool isLoading = true;
   final ProfileController _profileController = ProfileController();
   final FirebaseStorageService _storageService = FirebaseStorageService();
 
@@ -36,11 +37,45 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Future<void> _loadUser() async {
+    print("🔍 Loading user profile...");
+    setState(() {
+      isLoading = true;
+    });
+    
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      print("🔥 Firebase User Info:");
+      print("  - UID: ${firebaseUser.uid}");
+      print("  - Email: ${firebaseUser.email}");
+      print("  - Display Name: ${firebaseUser.displayName}");
+      print("  - Email Verified: ${firebaseUser.emailVerified}");
+    }
+    
     final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (idToken != null) {
+      print("✅ Firebase ID token obtained");
       UserModel? user = await _profileController.fetchUserProfile(idToken);
+      if (user != null) {
+        print("✅ User profile loaded successfully");
+        print("👤 Name: ${user.firstName} ${user.lastName}");
+        print("📧 Email: ${user.email}");
+        if (user.student != null) {
+          print("🎓 Student Number: ${user.student!.studentNumber}");
+          print("📚 Level: ${user.student!.level}");
+        } else {
+          print("⚠️ No student data found");
+        }
+      } else {
+        print("❌ Failed to load user profile");
+      }
       setState(() {
         currentUser = user;
+        isLoading = false;
+      });
+    } else {
+      print("❌ No Firebase ID token found");
+      setState(() {
+        isLoading = false;
       });
     }
   }
@@ -83,8 +118,18 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
         backgroundColor: AppColors.primaryColor,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadUser,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
         child: Column(
           children: [
             // New Profile Header Layout - Image left, details right
@@ -98,9 +143,28 @@ class _ProfileTabState extends State<ProfileTab> {
                     onTap: () => _pickAndUploadImage(),
                     child: CircleAvatar(
                       radius: 45,
-                      backgroundImage: imageUrl.isNotEmpty
-                          ? NetworkImage(imageUrl)
-                          : const AssetImage("assets/images/profile_placeholder.png") as ImageProvider,
+                      backgroundColor: Colors.grey[300],
+                      child: imageUrl.isNotEmpty
+                          ? ClipOval(
+                              child: Image.network(
+                                imageUrl,
+                                width: 90,
+                                height: 90,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.person,
+                                    size: 50,
+                                    color: Colors.grey[600],
+                                  );
+                                },
+                              ),
+                            )
+                          : Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Colors.grey[600],
+                            ),
                     ),
                   ),
                   
@@ -115,7 +179,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         Text(
                           currentUser != null
                               ? "${currentUser!.firstName} ${currentUser!.lastName}"
-                              : "Student Name",
+                              : "Loading...",
                           style: const TextStyle(
                             fontSize: 20, 
                             fontWeight: FontWeight.bold,
@@ -128,7 +192,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         Text(
                           currentUser != null && currentUser!.student != null
                               ? "Student Number: ${currentUser!.student!.studentNumber}"
-                              : "Student Number: ",
+                              : "Student Number: Loading...",
                           style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                         
@@ -137,8 +201,8 @@ class _ProfileTabState extends State<ProfileTab> {
                         // Student level
                         Text(
                           currentUser != null && currentUser!.student != null
-                              ? "Level: ${currentUser!.student!.level}"
-                              : "Level: ",
+                              ? "Level: ${currentUser!.student!.level.replaceAll('_', ' ')}"
+                              : "Level: Loading...",
                           style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                       ],

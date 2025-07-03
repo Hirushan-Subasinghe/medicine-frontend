@@ -1,25 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Choose the appropriate URL based on your testing environment:
-
-// For Android Emulator (this uses 10.0.2.2 which points to host's localhost):
-//const String baseUrl = "http://10.0.2.2:5002"; // Using test server port
-const String baseUrl = "http://213.35.103.150:80";
-
-// For iOS Simulator (uncomment if using iOS simulator):
-// const String baseUrl = "http://localhost:5002";
-
-// For Physical Device (uncomment and replace with your computer's IP address):
-// const String baseUrl = "http://192.168.x.x:5002"; // Replace with your actual IP
-
-// For testing directly on the same device as server:
-// const String baseUrl = "http://localhost:5002";
-
-// For local testing in emulator (uncomment to use local test server):
-// const String baseUrl = "http://10.0.2.2:5002";  
-
-// Debug mode (set to true to see detailed logging)
-const bool debugMode = true;
+const String baseUrl = "http://192.168.183.1:5002"; // Updated to match server port
 
 class AppColors {
   static const Color primaryColor = Color(0xFF2C5DE1);
