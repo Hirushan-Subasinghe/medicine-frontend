@@ -50,4 +50,22 @@ class MapService {
       throw Exception('Failed to fetch places');
     }
   }
+
+  // Search places from your backend
+  Future<List<Place>> searchPlaces(String query, String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/map/search?query=${Uri.encodeComponent(query)}'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List<dynamic> placesJson = data['data'];
+      return placesJson.map((json) => Place.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to search places');
+    }
+  }
 }

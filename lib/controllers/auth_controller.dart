@@ -516,6 +516,38 @@ Future<Map<String, dynamic>> changePassword(String currentPassword, String newPa
   }
 }
 
+  /// 🔹 Get current user's ID token
+  Future<String?> getCurrentUserToken() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) {
+        print("❌ No user is currently logged in");
+        return null;
+      }
+      
+      String? idToken = await user.getIdToken(true);
+      if (idToken == null) {
+        print("❌ Failed to get ID token");
+        return null;
+      }
+      
+      return idToken;
+    } catch (e) {
+      print("❌ Error getting current user token: $e");
+      return null;
+    }
+  }
+
+  /// 🔹 Check if user is logged in
+  bool isUserLoggedIn() {
+    return _auth.currentUser != null;
+  }
+
+  /// 🔹 Get current user
+  User? getCurrentUser() {
+    return _auth.currentUser;
+  }
+
   /// 🔹 Direct Signup Function (for testing without OTP)
   Future<String?> directSignupForTesting(Map<String, dynamic> signupData) async {
     try {
