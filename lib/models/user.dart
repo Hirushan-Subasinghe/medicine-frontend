@@ -10,8 +10,9 @@ class StudentData {
   });
 
   factory StudentData.fromJson(Map<String, dynamic> json) {
+    print("🎓 Parsing student data: $json");
     return StudentData(
-      studentNumber: json['studentNumber'] ?? '',
+      studentNumber: json['studentNumber'] ?? json['stuId'] ?? '',
       academicYear: json['academicYear'] ?? '',
       level: json['level'] ?? '',
     );
@@ -25,6 +26,7 @@ class UserModel {
   final String email;
   final String phoneNo;
   final String profileImgUrl;
+  final String? userRole;  // Add userRole field
   final StudentData? student;
   final DateTime? createdAt;  // New field for creation timestamp
   final DateTime? updatedAt;  // New field for update timestamp
@@ -36,12 +38,14 @@ class UserModel {
     required this.email,
     required this.phoneNo,
     required this.profileImgUrl,
+    this.userRole,
     this.student,
     this.createdAt,
     this.updatedAt,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    print("👤 Parsing user data: $json");
     return UserModel(
       userId: json['userId'],
       firstName: json['firstName'],
@@ -49,8 +53,9 @@ class UserModel {
       email: json['email'],
       phoneNo: json['phoneNo'],
       profileImgUrl: json['profileImgUrl'] ?? '',
+      userRole: json['userRole'],
       student: json['student'] != null
-          ? StudentData.fromJson(json['student'])
+          ? StudentData.fromJson(Map<String, dynamic>.from(json['student']))
           : null,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'])
@@ -68,6 +73,7 @@ class UserModel {
     String? email,
     String? phoneNo,
     String? profileImgUrl,
+    String? userRole,
     StudentData? student,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -79,6 +85,7 @@ class UserModel {
       email: email ?? this.email,
       phoneNo: phoneNo ?? this.phoneNo,
       profileImgUrl: profileImgUrl ?? this.profileImgUrl,
+      userRole: userRole ?? this.userRole,
       student: student ?? this.student,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

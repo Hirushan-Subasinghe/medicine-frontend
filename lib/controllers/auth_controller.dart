@@ -248,68 +248,113 @@ class AuthController {
   /// Final signup after OTP verified
   Future<String?> completeSignup(Map<String, dynamic> signupData) async {
     try {
-      // For testing, use a sample Firebase ID to check database connectivity
-      const String TEST_FIREBASE_ID = "sample_firebase_id_for_testing_123456";
+      print("🔄 Starting complete signup with real Firebase user creation");
       
-      // Extract idToken directly if it exists in signupData
-      String? idToken = signupData['idToken'];
-
-      // If idToken doesn't exist, we need to get it from the current user
-      if (idToken == null) {
-        // Check if we have a current user
-        User? currentUser = _auth.currentUser;
+      // Extract email and password
+      final String email = signupData['email'] ?? '';
+      final String password = signupData['password'] ?? '';
+      
+      if (email.isEmpty || password.isEmpty) {
+        return "Email and password are required for Firebase user creation";
+      }
+      
+      // Create REAL Firebase user
+      String realFirebaseUid;
+      String? idToken;
+      
+      try {
+        print("🔥 Creating REAL Firebase user with email: $email");
         
-        // If no user, try creating one with proper error handling
-        if (currentUser == null && signupData.containsKey('email') && signupData.containsKey('password')) {
+        // First, sign out any existing user to prevent conflicts
+        await _auth.signOut();
+        await Future.delayed(Duration(milliseconds: 500));
+        
+        final userCredential = await _auth.createUserWithEmailAndPassword(
+          email: email,
+          password: password
+        );
+        
+        if (userCredential.user == null) {
+          throw "Firebase user creation returned null user";
+        }
+        
+        realFirebaseUid = userCredential.user!.uid;
+        print("✅ REAL Firebase user created successfully with UID: $realFirebaseUid");
+        
+        // Try to update display name, but don't fail if it doesn't work due to PigeonUserDetails
+        try {
+          await userCredential.user!.updateDisplayName("${signupData['firstName']} ${signupData['lastName']}");
+          print("✅ Display name updated successfully");
+        } catch (displayNameError) {
+          print("⚠️ Failed to update display name (PigeonUserDetails issue): $displayNameError");
+          // Continue anyway, this is not critical
+        }
+        
+        // Get the ID token for backend verification
+        try {
+          idToken = await userCredential.user!.getIdToken();
+          print("✅ Got real Firebase ID token");
+        } catch (tokenError) {
+          print("⚠️ Failed to get ID token (PigeonUserDetails issue): $tokenError");
+          // Use the UID as fallback
+          idToken = realFirebaseUid;
+        }
+        
+      } catch (e) {
+        print("❌ Failed to create real Firebase user: $e");
+        
+        // Special handling for PigeonUserDetails error
+        if (e.toString().contains('PigeonUserDetails')) {
+          print("⚠️ Detected PigeonUserDetails error - but Firebase user might have been created anyway");
+          
+          // Wait a moment for Firebase to process
+          await Future.delayed(Duration(milliseconds: 2000));
+          
           try {
-            print("Creating new Firebase user");
-            // Create the user in Firebase Authentication
-            final userCred = await _auth.createUserWithEmailAndPassword(
-              email: signupData['email'],
-              password: signupData['password']
-            );
-            
-            // Get the user object
-            currentUser = userCred.user;
-            
-            if (currentUser == null) {
-              throw "Failed to create Firebase user";
+            // Check if we have a current user (the user might have been created despite the error)
+            final currentUser = _auth.currentUser;
+            if (currentUser != null) {
+              realFirebaseUid = currentUser.uid;
+              idToken = realFirebaseUid; // Use UID as token fallback
+              print("✅ Found current Firebase user despite PigeonUserDetails error! UID: $realFirebaseUid");
+            } else {
+              // Try to sign in with the credentials to see if the user was created
+              final testCredential = await _auth.signInWithEmailAndPassword(
+                email: email,
+                password: password
+              );
+              
+              if (testCredential.user != null) {
+                realFirebaseUid = testCredential.user!.uid;
+                idToken = realFirebaseUid; // Use UID as token fallback
+                print("✅ User was created despite PigeonUserDetails error! UID: $realFirebaseUid");
+              } else {
+                throw "User creation failed - no user found after PigeonUserDetails error";
+              }
             }
-            
-            // Get fresh ID token
-            idToken = await currentUser.getIdToken(true);
-            print("✅ Got ID token from newly created user: ${idToken?.substring(0, 10)}...");
-          } catch (e) {
-            print("❌ Error creating Firebase user: $e");
-            // For testing, continue with a test token
-            print("⚠️ Using test Firebase ID for database testing");
-            idToken = TEST_FIREBASE_ID;
+          } catch (signInError) {
+            print("❌ User was not created after PigeonUserDetails error: $signInError");
+            return "Firebase user creation failed due to platform issue. Please try again.";
           }
-        } else if (currentUser != null) {
-          // If user exists, just get the token
-          idToken = await currentUser.getIdToken(true);
-          print("✅ Got ID token from existing user: ${idToken?.substring(0, 10)}...");
-        } else {
-          // Fallback to test token if all methods fail
-          print("⚠️ No user available, using test Firebase ID");
-          idToken = TEST_FIREBASE_ID;
+        }
+        // Check if it's an "email already in use" error
+        else if (e.toString().contains('email-already-in-use')) {
+          return "This email is already registered. Please try logging in instead.";
+        }
+        else {
+          return "Firebase user creation failed: ${e.toString()}";
         }
       }
 
-      // Ensure we have an ID token or test ID
-      if (idToken == null) {
-        print("❌ No ID token available and test ID fallback failed");
-        return "Authentication error: Could not get ID token";
-      }
-
-      // Add idToken to the request
+      // Add the real Firebase UID and ID token to the request
       Map<String, dynamic> requestData = Map<String, dynamic>.from(signupData);
       requestData['idToken'] = idToken;
+      requestData['firebase_uid'] = realFirebaseUid;
 
       // Log the data we're sending to the backend
-      print("📤 Sending signup data to backend: ${requestData.toString()}");
+      print("📤 Sending signup data to backend with REAL Firebase UID: $realFirebaseUid");
       print("📍 Base URL: $baseUrl");
-      
+        
       // Test database connection by sending the request
       try {
         // Send to backend
@@ -325,7 +370,7 @@ class AuthController {
         print("📥 Backend response: ${res.statusCode} - ${res.body}");
 
         if (res.statusCode == 201 || res.statusCode == 200) {
-          print("✅ SUCCESS: User created in database");
+          print("✅ SUCCESS: User created in database with real Firebase UID");
           return "success";
         } else {
           final data = jsonDecode(res.body);
@@ -338,7 +383,7 @@ class AuthController {
       }
     } catch (e) {
       print("❌ Error during signup completion: $e");
-      return "Firebase signup failed: ${e.toString()}";
+      return "Signup failed: ${e.toString()}";
     }
   }
 
@@ -548,10 +593,10 @@ Future<Map<String, dynamic>> changePassword(String currentPassword, String newPa
     return _auth.currentUser;
   }
 
-  /// 🔹 Direct Signup Function (for testing without OTP)
+  /// 🔹 Direct Signup Function (creates real Firebase user)
   Future<String?> directSignupForTesting(Map<String, dynamic> signupData) async {
     try {
-      print("🔄 Starting direct signup for testing (bypassing OTP)");
+      print("🔄 Starting direct signup with real Firebase user creation");
       
       // Extract email and password if they exist in the data
       final String email = signupData['email'] ?? '';
@@ -561,34 +606,90 @@ Future<Map<String, dynamic>> changePassword(String currentPassword, String newPa
         return "Email and password are required";
       }
       
-      // FIXED DEMO FIREBASE ID APPROACH
-      // Instead of creating a real Firebase user, use a demo ID for testing
-      String demoFirebaseUid = "demo_firebase_uid_${DateTime.now().millisecondsSinceEpoch}";
-      print("🔄 Using demo Firebase UID: $demoFirebaseUid");
-      
-      // Still try to create Firebase user (for future reference) but don't depend on result
+      // Create REAL Firebase user
+      String realFirebaseUid;
       try {
-        print("🔄 Attempting Firebase user creation (but will use demo ID regardless)");
+        print("� Creating REAL Firebase user with email: $email");
+        
+        // First, sign out any existing user to prevent conflicts
+        await FirebaseAuth.instance.signOut();
+        await Future.delayed(Duration(milliseconds: 500));
+        
         final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email,
           password: password
         );
-        print("ℹ️ Firebase user created, but using demo ID for backend");
+        
+        if (userCredential.user == null) {
+          throw "Firebase user creation returned null user";
+        }
+        
+        realFirebaseUid = userCredential.user!.uid;
+        print("✅ REAL Firebase user created successfully with UID: $realFirebaseUid");
+        
+        // Try to update display name, but don't fail if it doesn't work due to PigeonUserDetails
+        try {
+          await userCredential.user!.updateDisplayName("${signupData['firstName']} ${signupData['lastName']}");
+          print("✅ Display name updated successfully");
+        } catch (displayNameError) {
+          print("⚠️ Failed to update display name (PigeonUserDetails issue): $displayNameError");
+          // Continue anyway, this is not critical
+        }
+        
       } catch (e) {
-        // Just log the error but continue with demo ID
-        print("ℹ️ Firebase user creation failed, but continuing with demo ID: $e");
+        print("❌ Failed to create real Firebase user: $e");
+        
+        // Special handling for PigeonUserDetails error
+        if (e.toString().contains('PigeonUserDetails')) {
+          print("⚠️ Detected PigeonUserDetails error - but Firebase user might have been created anyway");
+          
+          // Wait a moment for Firebase to process
+          await Future.delayed(Duration(milliseconds: 2000));
+          
+          try {
+            // Check if we have a current user (the user might have been created despite the error)
+            final currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null) {
+              realFirebaseUid = currentUser.uid;
+              print("✅ Found current Firebase user despite PigeonUserDetails error! UID: $realFirebaseUid");
+            } else {
+              // Try to sign in with the credentials to see if the user was created
+              final testCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+                email: email,
+                password: password
+              );
+              
+              if (testCredential.user != null) {
+                realFirebaseUid = testCredential.user!.uid;
+                print("✅ User was created despite PigeonUserDetails error! UID: $realFirebaseUid");
+              } else {
+                throw "User creation failed - no user found after PigeonUserDetails error";
+              }
+            }
+          } catch (signInError) {
+            print("❌ User was not created after PigeonUserDetails error: $signInError");
+            return "Firebase user creation failed due to platform issue. Please try again.";
+          }
+        }
+        // Check if it's an "email already in use" error
+        else if (e.toString().contains('email-already-in-use')) {
+          return "This email is already registered. Please try logging in instead.";
+        }
+        else {
+          return "Firebase user creation failed: ${e.toString()}";
+        }
       }
       
-      // Prepare data for the backend with demo Firebase ID
+      // Prepare data for the backend with REAL Firebase UID
       final Map<String, dynamic> requestData = Map<String, dynamic>.from(signupData);
       
-      // Use the demo Firebase ID in all fields
-      requestData['firebase_uid'] = demoFirebaseUid;
-      requestData['uid'] = demoFirebaseUid;
-      requestData['idToken'] = "firebase_uid:$demoFirebaseUid";
+      // Use the REAL Firebase UID in all fields
+      requestData['firebase_uid'] = realFirebaseUid;
+      requestData['uid'] = realFirebaseUid;
+      requestData['idToken'] = realFirebaseUid; // Send the actual UID instead of demo token
       
       // Log the data we're sending to the backend
-      print("📤 Sending signup data to backend with DEMO Firebase UID: $demoFirebaseUid");
+      print("📤 Sending signup data to backend with REAL Firebase UID: $realFirebaseUid");
       print("📍 Direct signup endpoint: $baseUrl/api/auth/direct-signup");
       
       final String directSignupUrl = '$baseUrl/api/auth/direct-signup';
@@ -609,7 +710,7 @@ Future<Map<String, dynamic>> changePassword(String currentPassword, String newPa
         print("📥 Backend response body: ${res.body}");
         
         if (res.statusCode == 201 || res.statusCode == 200) {
-          print("✅ SUCCESS: User created in database with demo Firebase UID: $demoFirebaseUid");
+          print("✅ SUCCESS: User created in database with real Firebase UID: $realFirebaseUid");
           return "success";
         } else {
           try {

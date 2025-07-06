@@ -28,19 +28,19 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   @override
   void initState() {
     super.initState();
-    // For testing - immediately attempt direct signup without OTP
+    // For now, still use direct signup for testing but with real Firebase users
     _directSignupForTesting();
   }
 
-  // Testing function that bypasses OTP verification
+  // Updated testing function that creates real Firebase users
   Future<void> _directSignupForTesting() async {
     setState(() {
       isLoading = true;
-      errorMessage = "TESTING MODE: Bypassing OTP verification...";
+      errorMessage = "Creating your account with real Firebase authentication...";
     });
     
     try {
-      // Call the direct signup method
+      // Call the updated direct signup method that creates real Firebase users
       final result = await authController.directSignupForTesting(widget.signupData);
       
       setState(() {
@@ -52,7 +52,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           context: context,
           builder: (_) => AlertDialog(
             title: const Text("Success"),
-            content: const Text("TEST MODE: Your account has been created bypassing OTP verification."),
+            content: const Text("Your account has been created successfully with real Firebase authentication."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -69,25 +69,16 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           ),
         );
       } else {
-        // Display more informative error message
-        String errorMsg = "";
-        if (result?.contains("email-already-in-use") ?? false) {
-          errorMsg = "This email is already registered. Try logging in instead.";
-        } else if (result?.contains("Firebase user creation failed") ?? false) {
-          errorMsg = "Firebase registration error: ${result?.split(': ').last ?? 'Unknown error'}";
-        } else {
-          errorMsg = result ?? "An unknown error occurred";
-        }
-        
+        // Display the error message
         setState(() {
-          errorMessage = "[TEST MODE] Signup issue: $errorMsg";
+          errorMessage = "Signup failed: $result";
         });
       }
     } catch (e) {
-      print("⚠️ Error in direct signup test mode: $e");
+      print("⚠️ Error in direct signup: $e");
       setState(() {
         isLoading = false;
-        errorMessage = "[TEST MODE] Firebase signup failed: ${e.toString()}";
+        errorMessage = "Signup failed: ${e.toString()}";
       });
       // Clean up by signing out if there was an error
       try {
@@ -96,7 +87,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     }
   }
 
-  // Original OTP verification function (kept for reference)
+  // Original OTP verification function (updated to create real Firebase users)
   void verifyOtp() async {
     setState(() {
       isLoading = true;
@@ -121,7 +112,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       // First sign out any existing user to avoid conflicts
       await FirebaseAuth.instance.signOut();
       
-      // Call backend to complete signup
+      // Call backend to complete signup with real Firebase user creation
       final result = await authController.completeSignup(widget.signupData);
       
       setState(() {
@@ -133,7 +124,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           context: context,
           builder: (_) => AlertDialog(
             title: const Text("Success"),
-            content: const Text("Your account has been created."),
+            content: const Text("Your account has been created successfully."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -157,7 +148,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     } catch (e) {
       setState(() {
         isLoading = false;
-        errorMessage = "Firebase signup failed: ${e.toString()}";
+        errorMessage = "Signup failed: ${e.toString()}";
       });
       
       // Clean up by signing out if there was an error

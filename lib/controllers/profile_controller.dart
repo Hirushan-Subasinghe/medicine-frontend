@@ -23,10 +23,19 @@ class ProfileController {
           // Debug the structure of the response
           final decodedData = jsonDecode(response.body);
           print("🔍 Response structure: ${decodedData.runtimeType}");
+          print("🔍 Full response data: $decodedData");
           
           if (decodedData is Map && decodedData.containsKey('user')) {
             final userData = decodedData['user'];
             print("👤 User data type: ${userData.runtimeType}");
+            print("👤 Full user data: $userData");
+            
+            // Check if student data exists
+            if (userData is Map && userData.containsKey('student')) {
+              print("🎓 Student data found: ${userData['student']}");
+            } else {
+              print("❌ No student data in response");
+            }
             
             // Handle the case where user data is a List
             if (userData is List) {

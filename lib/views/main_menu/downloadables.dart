@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../core/constants.dart'; // This import contains the baseUrl
 import 'package:open_file/open_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DownloadablesPage extends StatefulWidget {
   @override
@@ -89,7 +90,7 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
     }
   }
 
-  Future<void> downloadFile(String url, String filename) async {
+  Future<void> downloadFile(String url, String filename, [int? materialId]) async {
     try {
       // Show downloading started message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -141,6 +142,11 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
         print("✅ File successfully downloaded to: $savePath");
         print("✅ File size: ${downloadedFile.lengthSync()} bytes");
         
+        // Track download in database if materialId is provided
+        if (materialId != null) {
+          await trackMaterialDownload(materialId);
+        }
+        
         // Show success message with VIEW option
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -185,6 +191,74 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Track when a material is accessed (viewed)
+  Future<void> trackMaterialAccess(int materialId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final studentId = prefs.getString('student_id') ?? prefs.getString('user_id');
+      
+      if (studentId == null) {
+        print("❌ No student ID found in preferences");
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse("$baseUrl/api/materials/track-access"),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'materialId': materialId,
+          'studentId': studentId,
+          'isAccessed': 1,
+          'accessedDateTime': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Material access tracked successfully");
+      } else {
+        print("❌ Failed to track material access: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("❌ Error tracking material access: $e");
+    }
+  }
+
+  // Track when a material is downloaded
+  Future<void> trackMaterialDownload(int materialId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final studentId = prefs.getString('student_id') ?? prefs.getString('user_id');
+      
+      if (studentId == null) {
+        print("❌ No student ID found in preferences");
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse("$baseUrl/api/materials/track-download"),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'materialId': materialId,
+          'studentId': studentId,
+          'isDownloaded': 1,
+          'downloadedDateTime': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Material download tracked successfully");
+      } else {
+        print("❌ Failed to track material download: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("❌ Error tracking material download: $e");
     }
   }
 
@@ -291,6 +365,12 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
       margin: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       child: InkWell(
         onTap: () {
+          // Track material access when viewing details
+          final materialId = material['materialId'] ?? material['id'];
+          if (materialId != null) {
+            trackMaterialAccess(materialId);
+          }
+          
           // Show material details or preview
           _showMaterialDetails(material);
         },
@@ -350,9 +430,11 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
               IconButton(
                 icon: Icon(Icons.download_rounded, color: AppColors.primaryColor),
                 onPressed: () {
+                  final materialId = material['materialId'] ?? material['id'];
                   downloadFile(
                     material['materialLink'],
                     material['fileName'],
+                    materialId,
                   );
                 },
               ),
@@ -445,9 +527,11 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
                     ),
                     onPressed: () {
                       Navigator.pop(context);
+                      final materialId = material['materialId'] ?? material['id'];
                       downloadFile(
                         material['materialLink'],
                         material['fileName'],
+                        materialId,
                       );
                     },
                   ),

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
 import 'login_page.dart';
-import 'otp_verification_page.dart'; 
+// import 'otp_verification_page.dart'; // Temporarily commented out for testing 
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -125,6 +125,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       return;
     }
 
+    // TEMPORARILY BYPASS OTP FOR TESTING
     // ✅ Enforce university email restriction
     // if (!email.endsWith('@stu.kln.ac.lk')) {
     //   setState(() {
@@ -134,6 +135,62 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     //   return;
     // }
 
+    // SKIP OTP VERIFICATION FOR TESTING - DIRECTLY CREATE ACCOUNT
+    final signupData = {
+      "firstName": firstNameController.text.trim(),
+      "lastName": lastNameController.text.trim(),
+      "email": email,
+      "password": passwordController.text.trim(),
+      "studentNumber": studentNumberController.text.trim(),
+      "studentAcademicYear": academicYear, // Changed to use academic year instead of level
+      "department": selectedDepartment!,
+      "faculty": selectedFaculty!,
+      "phoneNo": phoneNoController.text.trim()
+    };
+
+    // Directly call signup without OTP verification
+    try {
+      final result = await authController.directSignupForTesting(signupData);
+      
+      setState(() {
+        isLoading = false;
+      });
+      
+      if (result == "success") {
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Success"),
+            content: const Text("Your account has been created successfully!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginPage()),
+                  );
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        setState(() {
+          errorMessage = result ?? "Signup failed.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = "Signup failed: ${e.toString()}";
+      });
+    }
+
+    // OLD OTP CODE (COMMENTED OUT FOR TESTING)
+    /*
     // ✅ Send OTP
     final otpResponse = await authController.sendOtp(email);
 
@@ -142,18 +199,6 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     });
 
     if (otpResponse['success']) {
-      final signupData = {
-        "firstName": firstNameController.text.trim(),
-        "lastName": lastNameController.text.trim(),
-        "email": email,
-        "password": passwordController.text.trim(),
-        "studentNumber": studentNumberController.text.trim(),
-        "studentAcademicYear": academicYear, // Changed to use academic year instead of level
-        "department": selectedDepartment!,
-        "faculty": selectedFaculty!,
-        "phoneNo": phoneNoController.text.trim()
-      };
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -168,8 +213,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         errorMessage = otpResponse['error'] ?? "Failed to send OTP.";
       });
     }
+    */
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +364,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   ),
                   child: isLoading
                       ? CircularProgressIndicator(color: Colors.white)
-                      : Text("Sign Up", style: AppTextStyles.button),
+                      : Text("Create Account (Testing Mode)", style: AppTextStyles.button),
                 ),
               ),
               SizedBox(height: 24),

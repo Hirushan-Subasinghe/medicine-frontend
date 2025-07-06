@@ -16,6 +16,7 @@ import 'package:freshers_connect/views/settings/forgot_password.dart';
 import 'package:freshers_connect/views/settings/notifications.dart';
 import '../diagnostics/diagnostic_page.dart';
 import '../../tools/network_monitor_page.dart';
+import '../debug/debug_profile_page.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
@@ -59,11 +60,13 @@ class _ProfileTabState extends State<ProfileTab> {
         print("✅ User profile loaded successfully");
         print("👤 Name: ${user.firstName} ${user.lastName}");
         print("📧 Email: ${user.email}");
+        print("🔍 User role: ${user.userRole ?? 'Not specified'}");
         if (user.student != null) {
           print("🎓 Student Number: ${user.student!.studentNumber}");
           print("📚 Level: ${user.student!.level}");
+          print("📅 Academic Year: ${user.student!.academicYear}");
         } else {
-          print("⚠️ No student data found");
+          print("❌ No student data found in user object");
         }
       } else {
         print("❌ Failed to load user profile");
@@ -192,8 +195,15 @@ class _ProfileTabState extends State<ProfileTab> {
                         Text(
                           currentUser != null && currentUser!.student != null
                               ? "Student Number: ${currentUser!.student!.studentNumber}"
-                              : "Student Number: Loading...",
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                              : currentUser != null 
+                                  ? "Student Number: Not available"
+                                  : "Student Number: Loading...",
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: currentUser != null && currentUser!.student == null 
+                                ? Colors.red[600] 
+                                : Colors.grey
+                          ),
                         ),
                         
                         const SizedBox(height: 4),
@@ -202,9 +212,42 @@ class _ProfileTabState extends State<ProfileTab> {
                         Text(
                           currentUser != null && currentUser!.student != null
                               ? "Level: ${currentUser!.student!.level.replaceAll('_', ' ')}"
-                              : "Level: Loading...",
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                              : currentUser != null 
+                                  ? "Level: Not available"
+                                  : "Level: Loading...",
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: currentUser != null && currentUser!.student == null 
+                                ? Colors.red[600] 
+                                : Colors.grey
+                          ),
                         ),
+
+                        const SizedBox(height: 4),
+                        
+                        // Academic Year
+                        Text(
+                          currentUser != null && currentUser!.student != null
+                              ? "Academic Year: ${currentUser!.student!.academicYear}"
+                              : currentUser != null 
+                                  ? "Academic Year: Not available"
+                                  : "Academic Year: Loading...",
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: currentUser != null && currentUser!.student == null 
+                                ? Colors.red[600] 
+                                : Colors.grey
+                          ),
+                        ),
+
+                        // Show user role for debugging
+                        if (currentUser != null && currentUser!.userRole != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            "Role: ${currentUser!.userRole}",
+                            style: const TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -286,6 +329,12 @@ class _ProfileTabState extends State<ProfileTab> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const NetworkMonitorPage()),
+              );
+            }),
+            _buildMenuItem(Icons.bug_report, "Debug Profile", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DebugProfilePage()),
               );
             }),
             
