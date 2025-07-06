@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const String baseUrl = "http://192.168.183.1:5002"; // Updated to match server port
+const String baseUrl = "http://10.0.2.2:5002"; // Android emulator localhost
 
 class AppColors {
   static const Color primaryColor = Color(0xFF2C5DE1);
