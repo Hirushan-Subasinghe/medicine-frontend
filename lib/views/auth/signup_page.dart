@@ -22,9 +22,10 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
   String? selectedDepartment;
   String? selectedFaculty;
+  int? selectedFacultyId;
 
-  List<String> departments = [];
-  List<String> faculties = [];
+  List<Map<String, dynamic>> departments = [];
+  List<Map<String, dynamic>> faculties = [];
 
   String errorMessage = "";
   bool isLoading = false;
@@ -40,56 +41,45 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
   Future<void> fetchDropdownData() async {
     try {
-      print("🔍 Fetching dropdown data from: $baseUrl");
-      print("🔍 Department URL: $baseUrl/api/common/departments");
+      print("🔍 Fetching faculties from: $baseUrl");
       print("🔍 Faculty URL: $baseUrl/api/common/faculties");
       
-      // Add timeout and better error handling
-      final depResponse = await http.get(
-        Uri.parse("$baseUrl/api/common/departments"),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(Duration(seconds: 10));
-      
+      // Only fetch faculties initially
       final facResponse = await http.get(
         Uri.parse("$baseUrl/api/common/faculties"),
         headers: {'Content-Type': 'application/json'},
       ).timeout(Duration(seconds: 10));
 
-      print("📊 Department response status: ${depResponse.statusCode}");
       print("📊 Faculty response status: ${facResponse.statusCode}");
 
-      if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
-        print("✅ Both API calls successful");
+      if (facResponse.statusCode == 200) {
+        print("✅ Faculty API call successful");
         
-        final List<dynamic> depData = jsonDecode(depResponse.body);
         final List<dynamic> facData = jsonDecode(facResponse.body);
 
-        print("📋 Raw department data length: ${depData.length}");
         print("📋 Raw faculty data length: ${facData.length}");
-        
-        print("📋 First department item: ${depData.isNotEmpty ? depData[0] : 'No data'}");
         print("📋 First faculty item: ${facData.isNotEmpty ? facData[0] : 'No data'}");
 
         setState(() {
-          departments = depData.map((e) => e['departmentName'].toString()).toList();
-          faculties = facData.map((e) => e['facultyName'].toString()).toList();
+          faculties = facData.map((e) => {
+            'facultyId': e['facultyId'],
+            'facultyName': e['facultyName'].toString()
+          }).toList();
         });
 
-        print("✅ Parsed Departments (${departments.length}): $departments");
         print("✅ Parsed Faculties (${faculties.length}): $faculties");
 
       } else {
-        print("❌ Failed to load dropdown data");
-        print("❌ Department response: ${depResponse.statusCode} - ${depResponse.body}");
+        print("❌ Failed to load faculty data");
         print("❌ Faculty response: ${facResponse.statusCode} - ${facResponse.body}");
         
         // Show error message to user
         setState(() {
-          errorMessage = "Failed to load dropdown data. Server responded with status: ${depResponse.statusCode}";
+          errorMessage = "Failed to load faculty data. Server responded with status: ${facResponse.statusCode}";
         });
       }
     } catch (e) {
-      print("❌ Error fetching dropdown data: $e");
+      print("❌ Error fetching faculty data: $e");
       String errorDetails = "";
       
       if (e.toString().contains('SocketException')) {
@@ -102,6 +92,57 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       
       setState(() {
         errorMessage = errorDetails;
+      });
+    }
+  }
+
+  Future<void> fetchDepartmentsByFaculty(int facultyId) async {
+    try {
+      print("🔍 Fetching departments for faculty $facultyId from: $baseUrl");
+      print("🔍 Department URL: $baseUrl/api/common/faculties/$facultyId/departments");
+      
+      final depResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/faculties/$facultyId/departments"),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
+
+      print("📊 Department response status: ${depResponse.statusCode}");
+
+      if (depResponse.statusCode == 200) {
+        print("✅ Department API call successful");
+        
+        final List<dynamic> depData = jsonDecode(depResponse.body);
+
+        print("📋 Raw department data length: ${depData.length}");
+        print("📋 First department item: ${depData.isNotEmpty ? depData[0] : 'No data'}");
+
+        setState(() {
+          departments = depData.map((e) => {
+            'deptId': e['deptId'],
+            'departmentName': e['departmentName'].toString()
+          }).toList();
+          // Reset department selection when faculty changes
+          selectedDepartment = null;
+        });
+
+        print("✅ Parsed Departments (${departments.length}): $departments");
+
+      } else {
+        print("❌ Failed to load department data");
+        print("❌ Department response: ${depResponse.statusCode} - ${depResponse.body}");
+        
+        setState(() {
+          departments = [];
+          selectedDepartment = null;
+          errorMessage = "Failed to load departments for selected faculty.";
+        });
+      }
+    } catch (e) {
+      print("❌ Error fetching department data: $e");
+      setState(() {
+        departments = [];
+        selectedDepartment = null;
+        errorMessage = "Error loading departments: $e";
       });
     }
   }
@@ -286,41 +327,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               buildTextField("Student Number", Icons.badge, studentNumberController),
               SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: "Department",
-                  prefixIcon: Icon(Icons.business, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                value: selectedDepartment,
-                items: departments.isEmpty
-                    ? [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text("No departments available"),
-                  )
-                ]
-                    : departments.map((dep) {
-                  return DropdownMenuItem(
-                    value: dep,
-                    child: Text(dep),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedDepartment = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please select a department";
-                  }
-                  return null;
-                },
-              ),
-
-              SizedBox(height: 16),
-
+              // Faculty dropdown - now appears first
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: "Faculty",
@@ -330,25 +337,87 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 value: selectedFaculty,
                 items: faculties.isEmpty
                     ? [
-                  DropdownMenuItem(
+                  DropdownMenuItem<String>(
                     value: null,
                     child: Text("No faculties available"),
                   )
                 ]
                     : faculties.map((fac) {
-                  return DropdownMenuItem(
-                    value: fac,
-                    child: Text(fac),
+                  return DropdownMenuItem<String>(
+                    value: fac['facultyName'],
+                    child: Text(fac['facultyName']),
                   );
                 }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     selectedFaculty = value;
+                    selectedDepartment = null; // Reset department selection
+                    departments = []; // Clear departments
+                    errorMessage = ""; // Clear any errors
                   });
+                  
+                  // Find the faculty ID for the selected faculty name
+                  if (value != null) {
+                    final selectedFacultyData = faculties.firstWhere(
+                      (fac) => fac['facultyName'] == value,
+                      orElse: () => {},
+                    );
+                    
+                    if (selectedFacultyData.isNotEmpty) {
+                      selectedFacultyId = selectedFacultyData['facultyId'];
+                      // Fetch departments for this faculty
+                      await fetchDepartmentsByFaculty(selectedFacultyId!);
+                    }
+                  }
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return "Please select a faculty";
+                  }
+                  return null;
+                },
+              ),
+
+              SizedBox(height: 16),
+
+              // Department dropdown - now filtered by faculty
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: selectedFaculty == null 
+                      ? "Department (Select Faculty First)" 
+                      : "Department",
+                  prefixIcon: Icon(Icons.business, color: AppColors.primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                value: selectedDepartment,
+                items: selectedFaculty == null
+                    ? [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text("Please select a faculty first"),
+                  )
+                ]
+                    : departments.isEmpty
+                        ? [
+                      DropdownMenuItem<String>(
+                        value: null,
+                        child: Text("No departments available"),
+                      )
+                    ]
+                        : departments.map((dep) {
+                      return DropdownMenuItem<String>(
+                        value: dep['departmentName'],
+                        child: Text(dep['departmentName']),
+                      );
+                    }).toList(),
+                onChanged: selectedFaculty == null ? null : (value) {
+                  setState(() {
+                    selectedDepartment = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a department";
                   }
                   return null;
                 },
