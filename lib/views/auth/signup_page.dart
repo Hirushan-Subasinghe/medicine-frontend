@@ -44,8 +44,16 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       print("🔍 Department URL: $baseUrl/api/common/departments");
       print("🔍 Faculty URL: $baseUrl/api/common/faculties");
       
-      final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
-      final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
+      // Add timeout and better error handling
+      final depResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/departments"),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
+      
+      final facResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/faculties"),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
 
       print("📊 Department response status: ${depResponse.statusCode}");
       print("📊 Faculty response status: ${facResponse.statusCode}");
@@ -77,13 +85,23 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         
         // Show error message to user
         setState(() {
-          errorMessage = "Failed to load dropdown data. Please check your internet connection.";
+          errorMessage = "Failed to load dropdown data. Server responded with status: ${depResponse.statusCode}";
         });
       }
     } catch (e) {
       print("❌ Error fetching dropdown data: $e");
+      String errorDetails = "";
+      
+      if (e.toString().contains('SocketException')) {
+        errorDetails = "Network connection failed. Please check if the server is running.";
+      } else if (e.toString().contains('TimeoutException')) {
+        errorDetails = "Request timed out. Please check your internet connection.";
+      } else {
+        errorDetails = "Network error: $e";
+      }
+      
       setState(() {
-        errorMessage = "Network error: $e";
+        errorMessage = errorDetails;
       });
     }
   }
