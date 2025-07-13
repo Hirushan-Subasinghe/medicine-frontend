@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:freshers_connect/views/auth/signup_page.dart';
+import 'package:freshers_connect/views/auth/multi_step_signup_page.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
 import '../../controllers/auth_controller.dart';
@@ -18,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool isLoading = false;
   String errorMessage = "";
+  bool _isPasswordVisible = false;
 
   Future<void> loginUser() async {
     setState(() {
@@ -118,36 +119,15 @@ class _LoginPageState extends State<LoginPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
                   children: [
-                    TextField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: "Student email",
-                        prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                    _buildTextField(
+                      "Student email",
+                      Icons.email,
+                      emailController,
+                      keyboardType: TextInputType.emailAddress,
                     ),
                     SizedBox(height: 16),
 
-                    TextField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
-                        suffixIcon: TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            "Forgot?",
-                            style: TextStyle(color: AppColors.primaryColor),
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
+                    _buildPasswordField(),
                     SizedBox(height: 16),
 
                     if (errorMessage.isNotEmpty)
@@ -178,7 +158,7 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => StudentSignupPage()),
+                          MaterialPageRoute(builder: (context) => MultiStepSignupPage()),
                         );
                       },
                       child: Text.rich(
@@ -202,6 +182,98 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: passwordController,
+        obscureText: !_isPasswordVisible,
+        decoration: InputDecoration(
+          labelText: "Password",
+          prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
+          suffixIcon: IconButton(
+            icon: Icon(
+              _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+              color: AppColors.primaryColor,
+            ),
+            onPressed: () {
+              setState(() {
+                _isPasswordVisible = !_isPasswordVisible;
+              });
+            },
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    IconData icon,
+    TextEditingController controller, {
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+    String? helperText,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helperText,
+          prefixIcon: Icon(icon, color: AppColors.primaryColor),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
           ),
         ),
       ),
