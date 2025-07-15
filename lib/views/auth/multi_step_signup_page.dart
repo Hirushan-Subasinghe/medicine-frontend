@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
-import 'login_page.dart';
+import 'otp_verification_page.dart';
 
 class MultiStepSignupPage extends StatefulWidget {
   @override
@@ -180,9 +180,10 @@ class _MultiStepSignupPageState extends State<MultiStepSignupPage>
     }
   }
 
-  void nextStep() {
+  void nextStep() async {
     if (currentStep < totalSteps - 1) {
-      if (validateCurrentStep()) {
+      final isValid = await validateCurrentStep();
+      if (isValid) {
         setState(() {
           currentStep++;
           errorMessage = "";
@@ -212,7 +213,7 @@ class _MultiStepSignupPageState extends State<MultiStepSignupPage>
     }
   }
 
-  bool validateCurrentStep() {
+  Future<bool> validateCurrentStep() async {
     switch (currentStep) {
       case 0: // Personal Info
         if (firstNameController.text.trim().isEmpty ||
@@ -223,6 +224,7 @@ class _MultiStepSignupPageState extends State<MultiStepSignupPage>
           });
           return false;
         }
+        
         // Basic email validation
         if (!emailController.text.contains('@')) {
           setState(() {
@@ -230,7 +232,35 @@ class _MultiStepSignupPageState extends State<MultiStepSignupPage>
           });
           return false;
         }
-        return true;
+
+        // University email and existence validation
+        setState(() {
+          isLoading = true;
+          errorMessage = "";
+        });
+
+        try {
+          final validationResult = await authController.validateEmail(emailController.text.trim());
+          
+          setState(() {
+            isLoading = false;
+          });
+
+          if (!validationResult['success']) {
+            setState(() {
+              errorMessage = validationResult['error'] ?? "Email validation failed";
+            });
+            return false;
+          }
+
+          return true;
+        } catch (e) {
+          setState(() {
+            isLoading = false;
+            errorMessage = "Failed to validate email. Please check your connection.";
+          });
+          return false;
+        }
 
       case 1: // Password
         if (passwordController.text.trim().isEmpty ||
@@ -307,41 +337,33 @@ class _MultiStepSignupPageState extends State<MultiStepSignupPage>
     };
 
     try {
-      final result = await authController.directSignupForTesting(signupData);
+      // Send OTP to user's email
+      final otpResult = await authController.sendOtp(emailController.text.trim());
       
       setState(() {
         isLoading = false;
       });
       
-      if (result == "success") {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Success"),
-            content: const Text("Your account has been created successfully!"),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => LoginPage()),
-                  );
-                },
-                child: const Text("OK"),
-              ),
-            ],
+      if (otpResult['success']) {
+        // Navigate to OTP verification page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OTPVerificationPage(
+              email: emailController.text.trim(),
+              signupData: signupData,
+            ),
           ),
         );
       } else {
         setState(() {
-          errorMessage = result ?? "Signup failed.";
+          errorMessage = otpResult['error'] ?? "Failed to send OTP. Please try again.";
         });
       }
     } catch (e) {
       setState(() {
         isLoading = false;
-        errorMessage = "Signup failed: ${e.toString()}";
+        errorMessage = "Failed to send OTP: ${e.toString()}";
       });
     }
   }

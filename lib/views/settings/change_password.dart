@@ -24,18 +24,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   bool _obscureConfirmPassword = true;
   int _currentStep = 0; // 0 = current password, 1 = new password
 
-  final PageController _pageController = PageController(initialPage: 0);
-
   @override
   void dispose() {
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
-  void _moveToNextStep() {
+  void _moveToNextStep() async {
     // First, validate the current password
     if (_currentPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,18 +44,70 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       return;
     }
 
-    // Navigate to the next step
-    _pageController.nextPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    // Show loading state
     setState(() {
-      _currentStep = 1;
+      _isLoading = true;
     });
+
+    try {
+      // Verify that the user is still authenticated
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User session expired. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
+
+      // Get a fresh ID token to verify the user is still authenticated
+      try {
+        await currentUser.getIdToken(true);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication error. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
+
+      // Navigate to the next step (simplified without PageController)
+      setState(() {
+        _currentStep = 1;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Additional validation
+    if (_newPasswordController.text == _currentPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New password must be different from current password'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -67,35 +116,72 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     });
 
     try {
+      // Show progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.primaryColor),
+                SizedBox(width: 20),
+                Text('Changing password...'),
+              ],
+            ),
+          );
+        },
+      );
+
       // Use the AuthController to change the password
       final result = await _authController.changePassword(
         _currentPasswordController.text,
         _newPasswordController.text,
       );
 
+      // Dismiss progress dialog
+      Navigator.of(context).pop();
+
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password changed successfully'),
-            backgroundColor: Colors.green,
-          ),
+        // Show success dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 30),
+                  SizedBox(width: 10),
+                  Text('Success'),
+                ],
+              ),
+              content: const Text('Your password has been changed successfully.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close dialog
+                    Navigator.of(context).pop(); // Go back to previous screen
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
         );
-        Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['error'] ?? 'Failed to change password'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
         
         // If the current password is incorrect, go back to the first step
-        if (result['error']?.contains('current password is incorrect') ?? false) {
-          _pageController.animateToPage(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
+        if (result['error']?.toLowerCase().contains('current password') ?? false ||
+            result['error']?.toLowerCase().contains('incorrect') ?? false) {
           setState(() {
             _currentStep = 0;
             _currentPasswordController.clear();
@@ -103,10 +189,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         }
       }
     } catch (e) {
+      // Dismiss progress dialog if it's showing
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -138,22 +230,87 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primaryColor))
-          : Form(
-        key: _formKey,
-        child: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _buildCurrentPasswordStep(),
-            _buildNewPasswordStep(),
-          ],
-        ),
+          : Column(
+        children: [
+          // Progress indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                // Step 1 indicator
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentStep >= 0 ? AppColors.primaryColor : Colors.grey[300],
+                  ),
+                  child: Center(
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        color: _currentStep >= 0 ? Colors.white : Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: _currentStep >= 1 ? AppColors.primaryColor : Colors.grey[300],
+                  ),
+                ),
+                // Step 2 indicator
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentStep >= 1 ? AppColors.primaryColor : Colors.grey[300],
+                  ),
+                  child: Center(
+                    child: Text(
+                      '2',
+                      style: TextStyle(
+                        color: _currentStep >= 1 ? Colors.white : Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Main content
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(1.0, 0.0),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  );
+                },
+                child: _currentStep == 0 
+                    ? _buildCurrentPasswordStep(key: const ValueKey('step1'))
+                    : _buildNewPasswordStep(key: const ValueKey('step2')),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCurrentPasswordStep() {
+  Widget _buildCurrentPasswordStep({Key? key}) {
     return Container(
+      key: key,
       padding: const EdgeInsets.all(20),
       child: SingleChildScrollView(
         child: Column(
@@ -276,8 +433,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
   }
 
-  Widget _buildNewPasswordStep() {
+  Widget _buildNewPasswordStep({Key? key}) {
     return Container(
+      key: key,
       padding: const EdgeInsets.all(20),
       child: SingleChildScrollView(
         child: Column(
@@ -337,6 +495,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 TextFormField(
                   controller: _newPasswordController,
                   obscureText: _obscureNewPassword,
+                  onChanged: (value) {
+                    setState(() {}); // Trigger rebuild for password strength indicator
+                  },
                   decoration: InputDecoration(
                     hintText: 'Enter your new password',
                     fillColor: Colors.grey[100],
@@ -368,9 +529,22 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     if (value.length < 6) {
                       return 'Password must be at least 6 characters';
                     }
+                    if (value == _currentPasswordController.text) {
+                      return 'New password must be different from current password';
+                    }
+                    // Check for at least one letter and one number
+                    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(value)) {
+                      return 'Password should contain at least one letter and one number';
+                    }
                     return null;
                   },
                 ),
+                // Password strength indicator
+                if (_newPasswordController.text.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _buildPasswordStrengthIndicator(_newPasswordController.text),
+                  ),
               ],
             ),
             const SizedBox(height: 20),
@@ -431,31 +605,116 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             ),
             const SizedBox(height: 40),
 
-            // Confirm Change Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _changePassword,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            // Buttons row
+            Row(
+              children: [
+                // Back button
+                Expanded(
+                  flex: 1,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _currentStep = 0;
+                      });
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primaryColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    child: const Text(
+                      'BACK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
-                child: const Text(
-                  'CONFIRM CHANGE',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                const SizedBox(width: 16),
+                // Confirm Change Button
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: _changePassword,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    child: const Text(
+                      'CONFIRM CHANGE',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPasswordStrengthIndicator(String password) {
+    int strength = 0;
+    String strengthText = '';
+    Color strengthColor = Colors.red;
+
+    // Check password strength criteria
+    if (password.length >= 6) strength++;
+    if (password.length >= 8) strength++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) strength++;
+    if (RegExp(r'[a-z]').hasMatch(password)) strength++;
+    if (RegExp(r'[0-9]').hasMatch(password)) strength++;
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) strength++;
+
+    if (strength <= 2) {
+      strengthText = 'Weak';
+      strengthColor = Colors.red;
+    } else if (strength <= 4) {
+      strengthText = 'Medium';
+      strengthColor = Colors.orange;
+    } else {
+      strengthText = 'Strong';
+      strengthColor = Colors.green;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Password Strength: ',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            Text(
+              strengthText,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: strengthColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: strength / 6,
+          backgroundColor: Colors.grey[300],
+          valueColor: AlwaysStoppedAnimation<Color>(strengthColor),
+        ),
+      ],
     );
   }
 }

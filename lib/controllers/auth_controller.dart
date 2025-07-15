@@ -194,6 +194,31 @@ class AuthController {
     print("✅ User logged out successfully.");
   }
 
+  /// Validate Email before Signup
+  Future<Map<String, dynamic>> validateEmail(String email) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/otp/validate-email'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      print('Email Validation Response Status: ${res.statusCode}');
+      print('Email Validation Response Body: ${res.body}');
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return {'success': true, 'message': data['message']};
+      } else {
+        final data = jsonDecode(res.body);
+        return {'success': false, 'error': data['error'] ?? 'Email validation failed'};
+      }
+    } catch (e) {
+      print('❌ Email validation error: $e');
+      return {'success': false, 'error': 'Network error. Please check your connection.'};
+    }
+  }
+
   /// Send OTP before Signup
   Future<Map<String, dynamic>> sendOtp(String email) async {
     try {
@@ -204,7 +229,12 @@ class AuthController {
       );
 
       if (res.statusCode == 200) {
-        return {'success': true};
+        final data = jsonDecode(res.body);
+        // Check if development OTP is provided
+        if (data['developmentOtp'] != null) {
+          print('🧪 DEVELOPMENT OTP: ${data['developmentOtp']}');
+        }
+        return {'success': true, 'data': data};
       } else {
         final data = jsonDecode(res.body);
         return {'success': false, 'error': data['error'] ?? 'Failed to send OTP'};
@@ -513,19 +543,39 @@ class AuthController {
   /// Change password for logged-in user
 Future<Map<String, dynamic>> changePassword(String currentPassword, String newPassword) async {
   try {
+    print('🔐 Starting password change process...');
+    
     // Get current user
     User? user = _auth.currentUser;
     
-    if (user == null || user.email == null) {
-      return {'success': false, 'error': 'User not logged in or email is missing'};
+    if (user == null) {
+      print('❌ No user is currently logged in');
+      return {'success': false, 'error': 'User not logged in'};
     }
+    
+    if (user.email == null) {
+      print('❌ User email is missing');
+      return {'success': false, 'error': 'User email is missing'};
+    }
+    
+    print('✅ User found: ${user.email}');
     
     // First, get a fresh ID token
-    String? idToken = await user.getIdToken(true);
+    String? idToken;
+    try {
+      idToken = await user.getIdToken(true);
+      print('✅ ID token obtained successfully');
+    } catch (tokenError) {
+      print('❌ Failed to get ID token: $tokenError');
+      return {'success': false, 'error': 'Failed to get authentication token'};
+    }
     
     if (idToken == null) {
+      print('❌ ID token is null');
       return {'success': false, 'error': 'Failed to get ID token'};
     }
+    
+    print('🌐 Calling backend API...');
     
     // Call the backend API to change the password
     final response = await http.post(
@@ -538,25 +588,27 @@ Future<Map<String, dynamic>> changePassword(String currentPassword, String newPa
       }),
     );
 
-    print('Password change response status: ${response.statusCode}');
-    print('Password change response body: ${response.body}');
+    print('📊 Response status: ${response.statusCode}');
+    print('📋 Response body: ${response.body}');
     
     final data = jsonDecode(response.body);
     
     if (response.statusCode == 200) {
+      print('✅ Password changed successfully');
       return {'success': true};
     } else {
+      print('❌ Password change failed: ${data['error']}');
       return {
         'success': false,
         'error': data['error'] ?? 'Failed to change password'
       };
     }
   } on FirebaseAuthException catch (e) {
-    print('FirebaseAuthException: ${e.code}');
+    print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
     String errorMessage = getFirebaseErrorMessage(e.code);
     return {'success': false, 'error': errorMessage};
   } catch (e) {
-    print('Error changing password: $e');
+    print('❌ General error changing password: $e');
     return {'success': false, 'error': e.toString()};
   }
 }

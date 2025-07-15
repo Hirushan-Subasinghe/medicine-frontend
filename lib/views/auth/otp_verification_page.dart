@@ -24,15 +24,21 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
   bool isLoading = false;
   String errorMessage = "";
+  bool isInfoMessage = false; // To differentiate between info and error messages
 
   @override
   void initState() {
     super.initState();
-    // For now, still use direct signup for testing but with real Firebase users
-    _directSignupForTesting();
+    // Show message that OTP has been sent
+    setState(() {
+      errorMessage = "OTP has been sent to ${widget.email}. Please check your email and enter the code below.";
+      isInfoMessage = true;
+    });
   }
 
-  // Updated testing function that creates real Firebase users
+  // Updated testing function that creates real Firebase users - REMOVED
+  // This was bypassing OTP verification for testing, now we use proper OTP flow
+  /*
   Future<void> _directSignupForTesting() async {
     setState(() {
       isLoading = true;
@@ -86,12 +92,14 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       } catch (_) {}
     }
   }
+  */
 
   // Original OTP verification function (updated to create real Firebase users)
   void verifyOtp() async {
     setState(() {
       isLoading = true;
       errorMessage = "";
+      isInfoMessage = false;
     });
 
     final response = await authController.sendOtpVerification(
@@ -103,6 +111,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       setState(() {
         isLoading = false;
         errorMessage = response['error'] ?? "Invalid OTP.";
+        isInfoMessage = false;
       });
       return;
     }
@@ -143,14 +152,15 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       } else {
         setState(() {
           errorMessage = result ?? "Signup failed.";
+          isInfoMessage = false;
         });
       }
     } catch (e) {
       setState(() {
         isLoading = false;
         errorMessage = "Signup failed: ${e.toString()}";
+        isInfoMessage = false;
       });
-      
       // Clean up by signing out if there was an error
       try {
         await FirebaseAuth.instance.signOut();
@@ -221,25 +231,6 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 🔹 Testing Mode Indicator
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.yellow.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber),
-                      ),
-                      child: Text(
-                        "TESTING MODE: OTP verification is bypassed for testing purposes.",
-                        style: TextStyle(
-                          color: Colors.amber.shade900,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-
                     // 🔹 OTP Input
                     TextField(
                       controller: otpController,
@@ -254,13 +245,16 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 🔹 Error Message
+                    // 🔹 Error/Info Message
                     if (errorMessage.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
                           errorMessage,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                          style: TextStyle(
+                            color: isInfoMessage ? AppColors.primaryColor : Colors.red, 
+                            fontSize: 14
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -285,10 +279,12 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                         if (!res['success']) {
                           setState(() {
                             errorMessage = res['error'] ?? "Failed to resend OTP.";
+                            isInfoMessage = false;
                           });
                         } else {
                           setState(() {
                             errorMessage = "OTP resent to your email.";
+                            isInfoMessage = true;
                           });
                         }
                       },
