@@ -63,25 +63,111 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         return;
       }
 
-      // Get a fresh ID token to verify the user is still authenticated
+      // Validate current password by attempting to re-authenticate
+      print('🔍 Validating current password...');
+      
+      // Show a brief validation message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Verifying current password...'),
+            ],
+          ),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
       try {
-        await currentUser.getIdToken(true);
-      } catch (e) {
+        // Re-authenticate the user with their current password
+        final credential = EmailAuthProvider.credential(
+          email: currentUser.email!,
+          password: _currentPasswordController.text,
+        );
+        
+        await currentUser.reauthenticateWithCredential(credential);
+        print('✅ Current password validated successfully');
+        
+        // Hide any existing snackbars
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Show success message briefly
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Authentication error. Please log in again.'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text('Password verified!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
           ),
         );
-        Navigator.pop(context);
+        
+        // Navigate to the next step after a brief delay
+        await Future.delayed(const Duration(milliseconds: 500));
+        setState(() {
+          _currentStep = 1;
+        });
+        
+      } on FirebaseAuthException catch (e) {
+        print('❌ Current password validation failed: ${e.code}');
+        
+        // Hide any existing snackbars
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        String errorMessage;
+        switch (e.code) {
+          case 'wrong-password':
+          case 'invalid-credential':
+            errorMessage = 'Current password is incorrect. Please try again.';
+            break;
+          case 'too-many-requests':
+            errorMessage = 'Too many failed attempts. Please try again later.';
+            break;
+          case 'user-disabled':
+            errorMessage = 'Your account has been disabled. Please contact support.';
+            break;
+          case 'user-not-found':
+            errorMessage = 'User account not found. Please log in again.';
+            break;
+          default:
+            errorMessage = 'Failed to verify current password. Please try again.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        
+        // Clear the current password field for security
+        _currentPasswordController.clear();
         return;
       }
 
-      // Navigate to the next step (simplified without PageController)
-      setState(() {
-        _currentStep = 1;
-      });
     } catch (e) {
+      print('❌ Error during password validation: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -178,15 +264,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             duration: const Duration(seconds: 4),
           ),
         );
-        
-        // If the current password is incorrect, go back to the first step
-        if (result['error']?.toLowerCase().contains('current password') ?? false ||
-            result['error']?.toLowerCase().contains('incorrect') ?? false) {
-          setState(() {
-            _currentStep = 0;
-            _currentPasswordController.clear();
-          });
-        }
       }
     } catch (e) {
       // Dismiss progress dialog if it's showing
@@ -409,7 +486,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _moveToNextStep,
+                onPressed: _isLoading ? null : _moveToNextStep,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,
                   shape: RoundedRectangleBorder(
@@ -417,14 +494,37 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
-                child: const Text(
-                  'CONTINUE',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isLoading 
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'VERIFYING...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const Text(
+                        'CONTINUE',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],
