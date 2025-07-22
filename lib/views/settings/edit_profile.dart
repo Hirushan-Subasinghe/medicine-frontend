@@ -161,56 +161,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     const SizedBox(height: 10),
                     // Profile image
-                    Center(
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey.shade300, width: 1),
-                              image: _profileImage != null
-                                  ? DecorationImage(
-                                      image: FileImage(_profileImage!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : _currentUser != null && _currentUser!.profileImgUrl.isNotEmpty
-                                      ? DecorationImage(
-                                          image: NetworkImage(_currentUser!.profileImgUrl),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : const DecorationImage(
-                                          image: AssetImage('assets/images/profile_placeholder.png'),
-                                          fit: BoxFit.cover,
-                                        ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: _selectImage,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.grey.shade300, width: 1),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  size: 18,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
+                    
                     
                     // Input fields
                     _buildInputField("First name", _firstNameController),
