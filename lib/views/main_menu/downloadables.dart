@@ -7,6 +7,7 @@ import 'dart:io';
 import '../../core/constants.dart'; // This import contains the baseUrl
 import 'package:open_file/open_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DownloadablesPage extends StatefulWidget {
   @override
@@ -90,8 +91,91 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
     }
   }
 
+  Future<bool> _requestStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+    
+    print("🔐 Checking storage permissions...");
+    
+    // For Android 11+ (API 30+), we need MANAGE_EXTERNAL_STORAGE
+    if (await Permission.manageExternalStorage.isGranted) {
+      print("✅ MANAGE_EXTERNAL_STORAGE already granted");
+      return true;
+    }
+    
+    // For older Android versions, check storage permission
+    if (await Permission.storage.isGranted) {
+      print("✅ Storage permission already granted");
+      return true;
+    }
+    
+    // Show permission explanation dialog first
+    bool? shouldRequest = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Storage Permission Required'),
+        content: Text('This app needs access to your device storage to download files. Please grant the permission in the next dialog.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Grant Permission'),
+          ),
+        ],
+      ),
+    );
+    
+    if (shouldRequest != true) return false;
+    
+    // Request MANAGE_EXTERNAL_STORAGE for Android 11+
+    print("📱 Requesting MANAGE_EXTERNAL_STORAGE permission...");
+    PermissionStatus manageStatus = await Permission.manageExternalStorage.request();
+    print("🔐 MANAGE_EXTERNAL_STORAGE status: $manageStatus");
+    
+    if (manageStatus.isGranted) {
+      return true;
+    }
+    
+    // Fallback to regular storage permission for older versions
+    print("📱 Requesting storage permission...");
+    PermissionStatus storageStatus = await Permission.storage.request();
+    print("🔐 Storage permission status: $storageStatus");
+    
+    if (storageStatus.isGranted) {
+      return true;
+    }
+    
+    // If both denied, show settings option
+    print("❌ Storage permissions denied");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Storage permission is required to download files. Please enable it in Settings."),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'OPEN SETTINGS',
+          textColor: Colors.white,
+          onPressed: () {
+            openAppSettings();
+          },
+        ),
+      ),
+    );
+    
+    return false;
+  }
+
   Future<void> downloadFile(String url, String filename, [int? materialId]) async {
     try {
+      // Request storage permission first
+      bool hasPermission = await _requestStoragePermission();
+      if (!hasPermission) {
+        print("❌ Storage permission not granted, aborting download");
+        return;
+      }
+
       // Show downloading started message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -99,10 +183,54 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
           duration: Duration(seconds: 1),
         ),
       );
-      // Get app directory for download - this is guaranteed to work
-      final Directory dir = await getApplicationDocumentsDirectory();
-      final String savePath = "${dir.path}/$filename";
-      print("📥 Downloading to: $savePath");
+      
+      // Construct proper download URL
+      String downloadUrl;
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // If it's already a full URL, replace localhost with proper base URL
+        if (url.contains('localhost:') || url.contains('127.0.0.1:')) {
+          // Extract the path part and reconstruct with proper base URL
+          Uri uri = Uri.parse(url);
+          downloadUrl = '$baseUrl${uri.path}';
+          print("🔄 Converting localhost URL to: $downloadUrl");
+        } else {
+          downloadUrl = url;
+        }
+      } else {
+        // If it's a relative path, prepend base URL
+        downloadUrl = '$baseUrl$url';
+        print("🔄 Constructing full URL: $downloadUrl");
+      }
+      
+      print("📥 Final download URL: $downloadUrl");
+      
+      // Get Downloads directory for Android or Documents for iOS
+      String savePath;
+      if (Platform.isAndroid) {
+        // For Android, try to use external storage Downloads directory
+        try {
+          final Directory downloadsDir = Directory('/storage/emulated/0/Download');
+          if (downloadsDir.existsSync()) {
+            savePath = "${downloadsDir.path}/$filename";
+            print("📥 Using Android Downloads directory: $savePath");
+          } else {
+            // Fallback to app documents directory
+            final Directory dir = await getApplicationDocumentsDirectory();
+            savePath = "${dir.path}/$filename";
+            print("📥 Fallback to app documents directory: $savePath");
+          }
+        } catch (e) {
+          // Fallback to app documents directory
+          final Directory dir = await getApplicationDocumentsDirectory();
+          savePath = "${dir.path}/$filename";
+          print("📥 Exception fallback to app documents directory: $savePath");
+        }
+      } else {
+        // For iOS, use app documents directory
+        final Directory dir = await getApplicationDocumentsDirectory();
+        savePath = "${dir.path}/$filename";
+        print("📥 Using iOS app documents directory: $savePath");
+      }
       
       // Show download progress dialog
       showDialog(
@@ -124,7 +252,7 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
       );
       // Download file
       await Dio().download(
-        url,
+        downloadUrl, // Use the corrected URL
         savePath,
         onReceiveProgress: (received, total) {
           if (total != -1) {
@@ -147,33 +275,39 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
           await trackMaterialDownload(materialId);
         }
         
-        // Show success message with VIEW option
+        // Show success message with OPEN and LOCATION options
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Download complete"),
+            content: Text("✅ Downloaded: $filename"),
+            duration: Duration(seconds: 8),
+            backgroundColor: Colors.green,
             action: SnackBarAction(
-              label: 'VIEW',
-              onPressed: () async {
-                try {
-                  // Open the file
-                  final result = await OpenFile.open(savePath);
-                  print("Open file result: ${result.message}");
-                  
-                  if (result.type != ResultType.done) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Could not open file: ${result.message}")),
-                    );
-                  }
-                } catch (e) {
-                  print("❌ Error opening file: $e");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Could not open file. Make sure you have the open_file package.")),
-                  );
-                }
+              label: 'VIEW LOCATION',
+              textColor: Colors.white,
+              onPressed: () {
+                final userFriendlyPath = Platform.isAndroid ? "Downloads/$filename" : "App Documents/$filename";
+                _showFileLocationDialog(userFriendlyPath, savePath);
               },
             ),
           ),
         );
+        
+        // Also try to open automatically (will show location if it fails)
+        Future.delayed(Duration(seconds: 1), () async {
+          print("🔍 Auto-attempting to open file: $savePath");
+          try {
+            final result = await OpenFile.open(savePath);
+            print("📄 Auto-open result: ${result.type} - ${result.message}");
+            
+            if (result.type != ResultType.done) {
+              print("⚠️ Auto-open failed, file saved successfully in Downloads folder");
+            } else {
+              print("✅ File auto-opened successfully");
+            }
+          } catch (e) {
+            print("❌ Auto-open error: $e");
+          }
+        });
       } else {
         throw Exception("File download appeared to succeed but file doesn't exist at $savePath");
       }
@@ -186,9 +320,10 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
       print("❌ Download error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Download failed: ${e.toString().substring(0, 
+          content: Text("❌ Download failed: ${e.toString().substring(0, 
             e.toString().length > 100 ? 100 : e.toString().length)}"),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
         ),
       );
     }
@@ -539,6 +674,57 @@ class _DownloadablesPageState extends State<DownloadablesPage> with TickerProvid
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _showFileLocationDialog(String userFriendlyPath, String fullPath) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Download Complete'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("File saved successfully!"),
+              SizedBox(height: 12),
+              Text("Location:", style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  userFriendlyPath,
+                  style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                ),
+              ),
+              if (Platform.isAndroid) ...[
+                SizedBox(height: 12),
+                Text(
+                  "📁 Check your Downloads folder in the file manager",
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK'),
+            ),
+          ],
         );
       },
     );
