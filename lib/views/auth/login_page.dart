@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freshers_connect/views/auth/multi_step_signup_page.dart';
+import '../settings/forgot_password.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
 import '../../controllers/auth_controller.dart';
@@ -167,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                           style: AppTextStyles.body,
                           children: [
                             TextSpan(
-                              text: "Register",
+                              text: "Register now",
                               style: TextStyle(
                                 color: AppColors.primaryColor,
                                 fontWeight: FontWeight.bold,
@@ -177,6 +178,34 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
+                    SizedBox(height: 8),
+
+                    // Centered compact forgot-password button placed below Register
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryColor,
+                          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          minimumSize: Size(0, 0),
+                        ),
+                        child: Text(
+                          "Forgot password?",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryColor,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+
                     SizedBox(height: 30),
                   ],
                 ),
