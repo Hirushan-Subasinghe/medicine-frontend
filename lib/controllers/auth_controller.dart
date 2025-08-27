@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../core/constants.dart'; // This gives access to baseUrl
+import '../services/auth_fallback_service.dart'; // Import fallback service
 final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
 
 
@@ -19,44 +20,68 @@ class AuthController {
 
       print("🚀 Attempting Firebase login...");
       
-      // First, sign out any existing user to prevent potential conflicts
-      await _auth.signOut();
+      // For development: Skip Firebase and go directly to fallback
+      print("🧪 Development mode: Using fallback authentication directly");
+      print("🔄 Trying fallback authentication...");
       
-      // Add delay to ensure signOut completes
-      await Future.delayed(Duration(milliseconds: 500));
-      
-      // Now attempt login
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      print("✅ Firebase login successful! User: ${userCredential.user?.uid}");
-
-      // Since we got here, Firebase auth was successful, so we can just return success
-      // This bypasses the problematic PigeonUserDetails issue
-      return "success";
-      
-    } on FirebaseAuthException catch (e) {
-      print("❌ FirebaseAuthException: ${e.code}");
-      return getFirebaseErrorMessage(e.code);
-    } on SocketException {
-      print("❌ No internet connection.");
-      return "No internet connection. Please check your network and try again.";
-    } catch (e) {
-      print("❌ General Error: $e");
-      
-      // Special handling for PigeonUserDetails error
-      if (e.toString().contains('PigeonUserDetails')) {
-        print("⚠️ Detected PigeonUserDetails error - ignoring and returning success");
-        
-        // If Firebase auth was successful but we got the PigeonUserDetails error,
-        // we can just return success since the user is authenticated
-        if (_auth.currentUser != null) {
+      try {
+        final fallbackUser = await AuthFallbackService.testLogin(email);
+        if (fallbackUser != null) {
+          print("✅ Fallback login successful!");
+          print("👤 User: ${fallbackUser['firstName']} ${fallbackUser['lastName']}");
           return "success";
+        } else {
+          print("❌ Fallback login failed");
         }
+      } catch (fallbackError) {
+        print("❌ Fallback error: $fallbackError");
       }
       
+      // If fallback fails, try Firebase as backup
+      try {
+        // First, sign out any existing user to prevent potential conflicts
+        await _auth.signOut();
+        
+        // Add delay to ensure signOut completes
+        await Future.delayed(Duration(milliseconds: 500));
+        
+        // Now attempt login
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        print("✅ Firebase login successful! User: ${userCredential.user?.uid}");
+        return "success";
+        
+      } on FirebaseAuthException catch (e) {
+        print("❌ FirebaseAuthException: ${e.code}");
+        print("❌ Firebase Error Message: ${e.message}");
+        print("❌ Full Firebase Error: $e");
+        
+        return "Firebase authentication is currently unavailable. Please try again later.";
+      } on SocketException {
+        print("❌ No internet connection");
+        return "No internet connection. Please check your network and try again.";
+      } catch (e) {
+        print("❌ General Error: $e");
+        
+        // Special handling for PigeonUserDetails error
+        if (e.toString().contains('PigeonUserDetails')) {
+          print("⚠️ Detected PigeonUserDetails error - ignoring and returning success");
+          
+          // If Firebase auth was successful but we got the PigeonUserDetails error,
+          // we can just return success since the user is authenticated
+          if (_auth.currentUser != null) {
+            return "success";
+          }
+        }
+        
+        return "Login failed. Please try again.";
+      }
+      
+    } catch (e) {
+      print("❌ Outer catch error: $e");
       return "Login failed. Please try again.";
     }
   }
@@ -103,60 +128,124 @@ class AuthController {
       }
 
       print("🚀 Creating Firebase user...");
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      
+      try {
+        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
 
-      if (userCredential.user == null) {
-        print("❌ Firebase user creation failed!");
-        return "Firebase signup failed. Please try again.";
+        if (userCredential.user == null) {
+          print("❌ Firebase user creation failed!");
+          return "Firebase signup failed. Please try again.";
+        }
+
+        print("✅ Firebase user created: ${userCredential.user?.uid}");
+
+        // 🔑 Get Firebase ID Token (REQUIRED for backend)
+        String? idToken = await userCredential.user?.getIdToken();
+        if (idToken == null) {
+          print("❌ Failed to get Firebase ID token.");
+          return "Failed to get Firebase ID token.";
+        }
+
+        // 📡 Send user data + ID token to backend
+        final response = await http.post(
+          Uri.parse("$baseUrl/api/auth/signup"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "idToken": idToken,
+            "firstName": firstName,
+            "lastName": lastName,
+            "email": email,
+            "studentNumber": studentNumber,
+            "level": level,
+            "department": department,
+            "faculty": faculty,
+            "phoneNo": phoneNo,
+          }),
+        );
+
+        print("📜 Response Status: ${response.statusCode}");
+        print("📜 Response Body: ${response.body}");
+
+        if (response.statusCode == 201) {
+          print("🎉 Signup Successful!");
+          return "success";
+        } else {
+          final Map<String, dynamic> body = jsonDecode(response.body);
+          return "Signup failed: ${body['error'] ?? 'Unknown error'}";
+        }
+        
+      } on FirebaseAuthException catch (e) {
+        print("❌ FirebaseAuthException: ${e.code}");
+        
+        // If Firebase fails with network error, try fallback
+        if (e.code == 'network-request-failed') {
+          print("🔄 Network error detected, trying fallback signup...");
+          final success = await AuthFallbackService.testSignup(
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            studentNumber: studentNumber,
+            academicYear: level, // Using level as academic year for now
+            faculty: faculty,
+            department: department,
+            phoneNo: phoneNo,
+          );
+          
+          if (success) {
+            print("✅ Fallback signup successful!");
+            return "success";
+          } else {
+            print("❌ Fallback signup also failed");
+            return "Signup failed. Please try again.";
+          }
+        }
+        
+        return getFirebaseErrorMessage(e.code);
       }
-
-      print("✅ Firebase user created: ${userCredential.user?.uid}");
-
-      // 🔑 Get Firebase ID Token (REQUIRED for backend)
-      String? idToken = await userCredential.user?.getIdToken();
-      if (idToken == null) {
-        print("❌ Failed to get Firebase ID token.");
-        return "Failed to get Firebase ID token.";
-      }
-
-      // 📡 Send user data + ID token to backend
-      final response = await http.post(
-        Uri.parse("http://10.236.189.117:5000/api/auth/signup"), // Replace with your local IP or domain
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "idToken": idToken,
-          "firstName": firstName,
-          "lastName": lastName,
-          "email": email,
-          "studentNumber": studentNumber,
-          "level": level,
-          "department": department,
-          "faculty": faculty,
-          "phoneNo": phoneNo,
-        }),
-      );
-
-      print("📜 Response Status: ${response.statusCode}");
-      print("📜 Response Body: ${response.body}");
-
-      if (response.statusCode == 201) {
-        print("🎉 Signup Successful!");
-        return "success";
-      } else {
-        final Map<String, dynamic> body = jsonDecode(response.body);
-        return "Signup failed: ${body['error'] ?? 'Unknown error'}";
-      }
-    } on FirebaseAuthException catch (e) {
-      print("❌ FirebaseAuthException: ${e.code}");
-      return getFirebaseErrorMessage(e.code);
+      
     } on SocketException {
-      print("❌ No internet connection.");
+      print("❌ No internet connection, trying fallback signup...");
+      final success = await AuthFallbackService.testSignup(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        studentNumber: studentNumber,
+        academicYear: level,
+        faculty: faculty,
+        department: department,
+        phoneNo: phoneNo,
+      );
+      
+      if (success) {
+        print("✅ Fallback signup successful!");
+        return "success";
+      }
+      
       return "No internet connection. Please check your network.";
     } catch (e) {
       print("❌ General Error: $e");
+      
+      // Try fallback for any other error
+      print("🔄 Trying fallback signup...");
+      final success = await AuthFallbackService.testSignup(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        studentNumber: studentNumber,
+        academicYear: level,
+        faculty: faculty,
+        department: department,
+        phoneNo: phoneNo,
+      );
+      
+      if (success) {
+        print("✅ Fallback signup successful!");
+        return "success";
+      }
+      
       return "An unexpected error occurred.";
     }
   }

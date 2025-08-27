@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
-import 'dart:math' as math;
 import '../services/rag_alert_service.dart';
 
 class EmergencyFabMenu extends StatefulWidget {
@@ -10,34 +9,15 @@ class EmergencyFabMenu extends StatefulWidget {
   _EmergencyFabMenuState createState() => _EmergencyFabMenuState();
 }
 
-class _EmergencyFabMenuState extends State<EmergencyFabMenu> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  bool _isExpanded = false;
-
+class _EmergencyFabMenuState extends State<EmergencyFabMenu> {
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 250),
-    );
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     super.dispose();
-  }
-
-  void _toggleExpansion() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
   }
 
   void _showEmergencyDialog() {
@@ -298,52 +278,6 @@ class _EmergencyFabMenuState extends State<EmergencyFabMenu> with SingleTickerPr
     }
   }
 
-  void _showRagInquiryDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Ragging Inquiry',
-          style: TextStyle(color: AppColors.primaryColor, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Would you like to submit a ragging inquiry?'),
-            SizedBox(height: 16),
-            Text(
-              'This will report non-emergency ragging incidents or concerns.',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              // Implement ragging inquiry functionality
-              Navigator.pop(context);
-              // Show a confirmation snackbar
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Ragging inquiry submitted'),
-                  backgroundColor: AppColors.primaryColor,
-                ),
-              );
-            },
-            child: Text('SUBMIT INQUIRY'),
-          ),
-        ],
-      ),
-    );
-  }
   
   @override
   Widget build(BuildContext context) {
@@ -352,128 +286,17 @@ class _EmergencyFabMenuState extends State<EmergencyFabMenu> with SingleTickerPr
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
-          // Label for the group of buttons
-          Positioned(
-            bottom: 8,
-            right: 68,
-            child: AnimatedOpacity(
-              opacity: _isExpanded ? 1.0 : 0.0,
-              duration: Duration(milliseconds: 200),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Emergency',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          
           // Main column for all the buttons
           Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Only show these two buttons when expanded
-              if (_isExpanded) ...[
-                // Rag Alert Button
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0, right: 8.0),
-                  child: Container(
-                    height: 56,
-                    width: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        customBorder: CircleBorder(),
-                        onTap: _showEmergencyDialog,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Icon(
-                              Icons.warning_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                            // Small attention indicator
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: Colors.yellow,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                
-                // Ragging Inquiry Button
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0, right: 8.0),
-                  child: Container(
-                    height: 56,
-                    width: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        customBorder: CircleBorder(),
-                        onTap: _showRagInquiryDialog,
-                        child: Center(
-                          child: Icon(
-                            Icons.question_answer,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              
               // Main button with separate functionality for button and arrow
               Container(
                 height: 64,
                 width: 64,
                 decoration: BoxDecoration(
-                  color: _isExpanded ? Colors.grey.shade800 : Colors.red,
+                  color: Colors.red,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -492,58 +315,12 @@ class _EmergencyFabMenuState extends State<EmergencyFabMenu> with SingleTickerPr
                         color: Colors.transparent,
                         child: InkWell(
                           customBorder: CircleBorder(),
-                          // Main button closes menu when expanded, otherwise shows emergency dialog
-                          onTap: _isExpanded ? _toggleExpansion : _showEmergencyDialog,
-                          child: AnimatedSwitcher(
-                            duration: Duration(milliseconds: 250),
-                            child: _isExpanded
-                                ? Icon(
-                                    Icons.close,
-                                    key: ValueKey('close'),
-                                    color: Colors.white,
-                                    size: 34,
-                                  )
-                                : Icon(
-                                    Icons.warning_rounded,
-                                    key: ValueKey('warning'),
-                                    color: Colors.white,
-                                    size: 34,
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    
-                    // Small arrow indicator on the bottom right - toggles menu expansion
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () {
-                          // Toggle the expansion separately from the main button
-                          _toggleExpansion();
-                        },
-                        child: Container(
-                          height: 20,
-                          width: 20,
-                          decoration: BoxDecoration(
-                            color: Colors.indigo,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: AnimatedBuilder(
-                              animation: _animationController,
-                              builder: (_, child) {
-                                return Transform.rotate(
-                                  angle: _animationController.value * math.pi,
-                                  child: Icon(
-                                    _isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                );
-                              },
-                            ),
+                          // Main button always shows emergency dialog now
+                          onTap: _showEmergencyDialog,
+                          child: Icon(
+                            Icons.warning_rounded,
+                            color: Colors.white,
+                            size: 34,
                           ),
                         ),
                       ),

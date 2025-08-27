@@ -12,7 +12,7 @@ class _TwilioTestPageState extends State<TwilioTestPage> {
   final TwilioService _twilioService = TwilioService();
   bool _isSending = false;
   String _status = '';
-  final String _testPhoneNumber = '+94714719886';
+  final String _testPhoneNumber = '+18777804236';
   
   Future<void> _sendTestMessage() async {
     setState(() {

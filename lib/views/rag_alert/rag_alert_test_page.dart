@@ -23,7 +23,7 @@ class _RagAlertTestPageState extends State<RagAlertTestPage> {
   void initState() {
     super.initState();
     // Pre-fill with your test number
-    _phoneController.text = '+94714719886';
+    _phoneController.text = '+18777804236';
     _nameController.text = 'Test Student';
     _idController.text = 'ST12345';
     _locationController.text = 'Engineering Building, Floor 2';

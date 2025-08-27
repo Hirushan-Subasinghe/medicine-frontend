@@ -176,9 +176,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (result['success']) {
         _nextPage(); // Only move to next page if OTP is correct
       } else {
-        // Stay on the same page and show error message for wrong OTP
+        // Stay on the same page and show specific error message for wrong OTP
+        String errorMessage = result['error'] ?? "Invalid OTP. Please try again.";
+        
+        // Check for specific error types
+        if (errorMessage.toLowerCase().contains('expired') || 
+            errorMessage.toLowerCase().contains('timeout')) {
+          errorMessage = "OTP has expired. Please request a new one.";
+        } else if (errorMessage.toLowerCase().contains('invalid') ||
+                   errorMessage.toLowerCase().contains('incorrect') ||
+                   errorMessage.toLowerCase().contains('wrong')) {
+          errorMessage = "Invalid OTP. Please check and try again.";
+        } else if (errorMessage.toLowerCase().contains('attempts') ||
+                   errorMessage.toLowerCase().contains('limit')) {
+          errorMessage = "Too many failed attempts. Please request a new OTP.";
+        }
+        
         setState(() {
-          _errorMessage = result['error'] ?? "Invalid OTP. Please try again.";
+          _errorMessage = errorMessage;
         });
         
         // Clear OTP input fields to let user try again
@@ -247,10 +262,37 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           curve: Curves.easeInOut,
         );
       } else {
-        throw result['error'] ?? "Password reset failed";
+        // Handle specific password reset errors
+        String errorMessage = result['error'] ?? "Password reset failed";
+        
+        if (errorMessage.toLowerCase().contains('weak') || 
+            errorMessage.toLowerCase().contains('strength')) {
+          errorMessage = "Password is too weak. Please choose a stronger password with letters, numbers and special characters.";
+        } else if (errorMessage.toLowerCase().contains('expired') ||
+                   errorMessage.toLowerCase().contains('session')) {
+          errorMessage = "Session has expired. Please start the password reset process again.";
+        } else if (errorMessage.toLowerCase().contains('user') &&
+                   errorMessage.toLowerCase().contains('not found')) {
+          errorMessage = "Account not found. Please contact support.";
+        }
+        
+        throw errorMessage;
       }
     } catch (e) {
-      _showErrorSnackBar(e.toString());
+      // Enhanced error handling with user-friendly messages
+      String userFriendlyError = e.toString();
+      
+      if (userFriendlyError.toLowerCase().contains('network') ||
+          userFriendlyError.toLowerCase().contains('connectivity') ||
+          userFriendlyError.toLowerCase().contains('connection')) {
+        userFriendlyError = "Network error. Please check your internet connection and try again.";
+      } else if (userFriendlyError.toLowerCase().contains('timeout')) {
+        userFriendlyError = "Request timed out. Please try again.";
+      } else if (userFriendlyError.toLowerCase().contains('server')) {
+        userFriendlyError = "Server error. Please try again later.";
+      }
+      
+      _showErrorSnackBar(userFriendlyError);
     } finally {
       setState(() {
         _isLoading = false;

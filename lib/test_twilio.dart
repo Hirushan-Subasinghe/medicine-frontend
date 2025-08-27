@@ -6,9 +6,9 @@ void main() async {
   print('Starting Twilio SMS Test...');
   final twilioService = TwilioService();
   
-  print('Sending test SMS to +94714719886...');
+  print('Sending test SMS to +18777804236...');
   try {
-    final success = await twilioService.sendTestMessage('+94714719886');
+    final success = await twilioService.sendTestMessage('+18777804236');
     print(success 
         ? 'SMS sent successfully!' 
         : 'Failed to send SMS. Check console for details.');

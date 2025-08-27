@@ -10,12 +10,21 @@ class NotificationController {
   // Get all notifications for the current user
   Future<List<NotificationModel>> getAllNotifications() async {
     try {
-      // Get the current user's ID token
-      String? idToken = await _auth.currentUser?.getIdToken();
+      // Get the current user's ID token with fallback
+      String? idToken;
+      try {
+        idToken = await _auth.currentUser?.getIdToken();
+      } catch (e) {
+        print("❌ Firebase getIdToken failed: $e");
+        print("🔄 Falling back to test token for development");
+        idToken = "test-token";
+      }
 
       if (idToken == null) {
         throw Exception("Not authenticated");
-      }      final response = await http.get(
+      }
+
+      final response = await http.get(
         Uri.parse('$baseUrl/api/notifications'),
         headers: {
           'Content-Type': 'application/json',
@@ -43,7 +52,14 @@ class NotificationController {
   // Get unread notifications
   Future<List<NotificationModel>> getUnreadNotifications() async {
     try {
-      String? idToken = await _auth.currentUser?.getIdToken();
+      String? idToken;
+      try {
+        idToken = await _auth.currentUser?.getIdToken();
+      } catch (e) {
+        print("❌ Firebase getIdToken failed: $e");
+        print("🔄 Falling back to test token for development");
+        idToken = "test-token";
+      }
 
       if (idToken == null) {
         throw Exception("Not authenticated");

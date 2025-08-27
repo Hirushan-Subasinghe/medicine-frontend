@@ -37,11 +37,11 @@ class _TwilioTestScreenState extends State<TwilioTestScreen> {
   Future<void> _sendTestSMS() async {
     setState(() {
       _isSending = true;
-      _status = 'Sending test SMS to +94714719886...';
+      _status = 'Sending test SMS to +18777804236...';
     });
     
     try {
-      final result = await _twilioService.sendTestMessage('+94714719886');
+      final result = await _twilioService.sendTestMessage('+18777804236');
       setState(() {
         _isSending = false;
         _status = result 

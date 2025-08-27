@@ -22,7 +22,7 @@ class _SMSTestWidgetState extends State<SMSTestWidget> {
     
     try {
       // Send to your phone number
-      final result = await _twilioService.sendTestMessage('+94714719886');
+      final result = await _twilioService.sendTestMessage('+18777804236');
       
       setState(() {
         _isSending = false;

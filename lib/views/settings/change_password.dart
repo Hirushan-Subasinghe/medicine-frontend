@@ -342,11 +342,49 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           },
         );
       } else {
+        // Parse the error message and show appropriate feedback
+        String errorMessage = result['error'] ?? 'Failed to change password';
+        Color backgroundColor = Colors.red;
+        
+        // Check for specific error types
+        if (errorMessage.toLowerCase().contains('current password is incorrect') || 
+            errorMessage.toLowerCase().contains('wrong password') ||
+            errorMessage.toLowerCase().contains('invalid password')) {
+          errorMessage = 'Current password is incorrect. Please try again.';
+          backgroundColor = Colors.orange;
+        } else if (errorMessage.toLowerCase().contains('weak password') ||
+                   errorMessage.toLowerCase().contains('password is too weak')) {
+          errorMessage = 'New password is too weak. Please choose a stronger password.';
+        } else if (errorMessage.toLowerCase().contains('session') ||
+                   errorMessage.toLowerCase().contains('token') ||
+                   errorMessage.toLowerCase().contains('expired')) {
+          errorMessage = 'Your session has expired. Please log in again.';
+          backgroundColor = Colors.blue;
+        } else if (errorMessage.toLowerCase().contains('network') ||
+                   errorMessage.toLowerCase().contains('connectivity') ||
+                   errorMessage.toLowerCase().contains('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+          backgroundColor = Colors.purple;
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['error'] ?? 'Failed to change password'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: backgroundColor,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }

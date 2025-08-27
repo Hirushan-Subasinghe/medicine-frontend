@@ -4,7 +4,7 @@ import 'dart:io';
 // Dynamic base URL based on platform and environment
 String get baseUrl {
   if (Platform.isAndroid) {
-    // For Android emulator
+    // For Android emulator - 10.0.2.2 maps to host machine's localhost
     return "http://10.0.2.2:5002";
   } else if (Platform.isIOS) {
     // For iOS simulator

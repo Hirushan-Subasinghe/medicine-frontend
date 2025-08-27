@@ -32,7 +32,7 @@ class TwilioTestPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Press the button below to send a test SMS to +94714719886.',
+                'Press the button below to send a test SMS to +18777804236.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),

@@ -13,9 +13,9 @@ class TwilioService {
   TwilioService._internal() {
     // Initialize Twilio with your credentials
     _twilioFlutter = TwilioFlutter(
-      accountSid: 'ACcf2be9f9e8ad792e61a6664971e3b312', 
-      authToken: '7538c8d34b35476624925dda467a774b',
-      twilioNumber: '+18312573525'
+      accountSid: 'AC6433d1553032a17e830cd4639de7658e', 
+      authToken: '60dc2f5c55bac3d0026caec70a0ac5bc',
+      twilioNumber: '+17754179533'  // Updated sender number
     );
   }
     // Send SMS function with improved error handling

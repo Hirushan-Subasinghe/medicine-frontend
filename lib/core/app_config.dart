@@ -8,7 +8,7 @@ class AppConfig {
   static const int apiTimeout = 10; // in seconds
   
   // Emergency contact numbers
-  static const String primaryEmergencyContact = '+94714719886';
+  static const String primaryEmergencyContact = '+18777804236';
   static const List<String> secondaryEmergencyContacts = [
     // Add additional emergency numbers here
   ];

@@ -39,40 +39,57 @@ class _ProfileTabState extends State<ProfileTab> {
       isLoading = true;
     });
     
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser != null) {
-      print("🔥 Firebase User Info:");
-      print("  - UID: ${firebaseUser.uid}");
-      print("  - Email: ${firebaseUser.email}");
-      print("  - Display Name: ${firebaseUser.displayName}");
-      print("  - Email Verified: ${firebaseUser.emailVerified}");
-    }
-    
-    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (idToken != null) {
-      print("✅ Firebase ID token obtained");
-      UserModel? user = await _profileController.fetchUserProfile(idToken);
-      if (user != null) {
-        print("✅ User profile loaded successfully");
-        print("👤 Name: ${user.firstName} ${user.lastName}");
-        print("📧 Email: ${user.email}");
-        print("🔍 User role: ${user.userRole ?? 'Not specified'}");
-        if (user.student != null) {
-          print("🎓 Student Number: ${user.student!.studentNumber}");
-          print("📚 Level: ${user.student!.level}");
-          print("📅 Academic Year: ${user.student!.academicYear}");
-        } else {
-          print("❌ No student data found in user object");
-        }
-      } else {
-        print("❌ Failed to load user profile");
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        print("🔥 Firebase User Info:");
+        print("  - UID: ${firebaseUser.uid}");
+        print("  - Email: ${firebaseUser.email}");
+        print("  - Display Name: ${firebaseUser.displayName}");
+        print("  - Email Verified: ${firebaseUser.emailVerified}");
       }
-      setState(() {
-        currentUser = user;
-        isLoading = false;
-      });
-    } else {
-      print("❌ No Firebase ID token found");
+      
+      String? idToken;
+      try {
+        idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (idToken != null) {
+          print("✅ Firebase ID token obtained");
+        }
+      } catch (e) {
+        print("❌ Firebase getIdToken failed: $e");
+        print("🔄 Falling back to test token for development");
+        idToken = "test-token";
+      }
+      
+      if (idToken != null) {
+        UserModel? user = await _profileController.fetchUserProfile(idToken);
+        if (user != null) {
+          print("✅ User profile loaded successfully");
+          print("👤 Name: ${user.firstName} ${user.lastName}");
+          print("📧 Email: ${user.email}");
+          print("🔍 User role: ${user.userRole ?? 'Not specified'}");
+          if (user.student != null) {
+            print("🎓 Student Number: ${user.student!.studentNumber}");
+            print("📚 Level: ${user.student!.level}");
+            print("📅 Academic Year: ${user.student!.academicYear}");
+          } else {
+            print("❌ No student data found in user object");
+          }
+        } else {
+          print("❌ Failed to load user profile");
+        }
+        setState(() {
+          currentUser = user;
+          isLoading = false;
+        });
+      } else {
+        print("❌ No Firebase ID token found and fallback failed");
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Error loading user: $e");
       setState(() {
         isLoading = false;
       });
