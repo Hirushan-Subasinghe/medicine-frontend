@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 
-const String baseUrl = "http://192.168.8.191:5001"; // or localhost IP
+// Dynamic base URL based on platform and environment
+String get baseUrl {
+  if (Platform.isAndroid) {
+    // For Android emulator and real devices - use your computer's IP
+    return "http://192.168.56.1:5002";
+  } else if (Platform.isIOS) {
+    // For iOS simulator and real devices - use your computer's IP
+    return "http://192.168.56.1:5002";
+  } else {
+    // For web or other platforms - use localhost
+    return "http://localhost:5002";
+  }
+}
 
 class AppColors {
   static const Color primaryColor = Color(0xFF2C5DE1);

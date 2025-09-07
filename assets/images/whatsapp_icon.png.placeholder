@@ -1,0 +1,5 @@
+// This is a placeholder for the whatsapp icon image
+// In a real project, you'd put a proper .png file here
+// Since we can't directly create binary files, you need to:
+// 1. Download a WhatsApp logo icon
+// 2. Save it as 'whatsapp_icon.png' in this directory

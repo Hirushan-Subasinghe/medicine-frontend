@@ -24,11 +24,82 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
   bool isLoading = false;
   String errorMessage = "";
+  bool isInfoMessage = false; // To differentiate between info and error messages
 
+  @override
+  void initState() {
+    super.initState();
+    // Show message that OTP has been sent
+    setState(() {
+      errorMessage = "OTP has been sent to ${widget.email}. Please check your email and enter the code below.";
+      isInfoMessage = true;
+    });
+  }
+
+  // Updated testing function that creates real Firebase users - REMOVED
+  // This was bypassing OTP verification for testing, now we use proper OTP flow
+  /*
+  Future<void> _directSignupForTesting() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = "Creating your account with real Firebase authentication...";
+    });
+    
+    try {
+      // Call the updated direct signup method that creates real Firebase users
+      final result = await authController.directSignupForTesting(widget.signupData);
+      
+      setState(() {
+        isLoading = false;
+      });
+      
+      if (result == "success") {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Success"),
+            content: const Text("Your account has been created successfully with real Firebase authentication."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginPage()),
+                    (route) => false,
+                  );
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Display the error message
+        setState(() {
+          errorMessage = "Signup failed: $result";
+        });
+      }
+    } catch (e) {
+      print("⚠️ Error in direct signup: $e");
+      setState(() {
+        isLoading = false;
+        errorMessage = "Signup failed: ${e.toString()}";
+      });
+      // Clean up by signing out if there was an error
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+  }
+  */
+
+  // Original OTP verification function (updated to create real Firebase users)
   void verifyOtp() async {
     setState(() {
       isLoading = true;
       errorMessage = "";
+      isInfoMessage = false;
     });
 
     final response = await authController.sendOtpVerification(
@@ -40,35 +111,19 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       setState(() {
         isLoading = false;
         errorMessage = response['error'] ?? "Invalid OTP.";
+        isInfoMessage = false;
       });
       return;
     }
 
     // OTP verified. Now create Firebase user and complete signup
-    final email = widget.signupData['email'];
-    final password = widget.signupData['password'];
-
     try {
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final idToken = await userCredential.user?.getIdToken();
-
-      if (idToken == null) {
-        setState(() {
-          isLoading = false;
-          errorMessage = "Failed to get Firebase ID token.";
-        });
-        return;
-      }
-
-      final updatedSignupData = Map<String, dynamic>.from(widget.signupData);
-      updatedSignupData['idToken'] = idToken;
-
-      final result = await authController.completeSignup(updatedSignupData);
-
+      // First sign out any existing user to avoid conflicts
+      await FirebaseAuth.instance.signOut();
+      
+      // Call backend to complete signup with real Firebase user creation
+      final result = await authController.completeSignup(widget.signupData);
+      
       setState(() {
         isLoading = false;
       });
@@ -78,7 +133,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           context: context,
           builder: (_) => AlertDialog(
             title: const Text("Success"),
-            content: const Text("Your account has been created."),
+            content: const Text("Your account has been created successfully."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -86,7 +141,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => LoginPage()),
-                        (route) => false,
+                    (route) => false,
                   );
                 },
                 child: const Text("OK"),
@@ -97,18 +152,22 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       } else {
         setState(() {
           errorMessage = result ?? "Signup failed.";
+          isInfoMessage = false;
         });
       }
     } catch (e) {
       setState(() {
         isLoading = false;
-        errorMessage = "Firebase signup failed: ${e.toString()}";
+        errorMessage = "Signup failed: ${e.toString()}";
+        isInfoMessage = false;
       });
+      // Clean up by signing out if there was an error
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
     }
   }
 
-
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,13 +245,16 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 🔹 Error Message
+                    // 🔹 Error/Info Message
                     if (errorMessage.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
                           errorMessage,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                          style: TextStyle(
+                            color: isInfoMessage ? AppColors.primaryColor : Colors.red, 
+                            fontSize: 14
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -217,10 +279,12 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                         if (!res['success']) {
                           setState(() {
                             errorMessage = res['error'] ?? "Failed to resend OTP.";
+                            isInfoMessage = false;
                           });
                         } else {
                           setState(() {
                             errorMessage = "OTP resent to your email.";
+                            isInfoMessage = true;
                           });
                         }
                       },

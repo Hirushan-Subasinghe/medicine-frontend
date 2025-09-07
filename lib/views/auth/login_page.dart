@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:medicine/views/auth/signup_page.dart';
+import 'package:freshers_connect/views/auth/multi_step_signup_page.dart';
+import '../settings/forgot_password.dart';
 import '../../core/constants.dart';
 import '../main_menu/main_menu.dart';
 import '../../controllers/auth_controller.dart';
@@ -18,14 +19,18 @@ class _LoginPageState extends State<LoginPage> {
 
   bool isLoading = false;
   String errorMessage = "";
+  bool _isPasswordVisible = false;
 
   Future<void> loginUser() async {
+    print("🔥🔥🔥 LOGIN USER METHOD CALLED IN LOGIN PAGE! 🔥🔥🔥");
+    
     setState(() {
       errorMessage = "";
       isLoading = true;
     });
 
     if (emailController.text.trim().isEmpty && passwordController.text.trim().isEmpty) {
+      print("❌ Both fields empty");
       setState(() {
         errorMessage = "Email and password fields cannot be empty.";
         isLoading = false;
@@ -34,6 +39,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     if (emailController.text.trim().isEmpty) {
+      print("❌ Email field empty");
       setState(() {
         errorMessage = "The email field cannot be empty.";
         isLoading = false;
@@ -42,6 +48,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     if (passwordController.text.trim().isEmpty) {
+      print("❌ Password field empty");
       setState(() {
         errorMessage = "The password field cannot be empty.";
         isLoading = false;
@@ -51,6 +58,7 @@ class _LoginPageState extends State<LoginPage> {
 
     var connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
+      print("❌ No internet connection");
       setState(() {
         errorMessage = "No internet connection. Please check and try again.";
         isLoading = false;
@@ -58,21 +66,34 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    print("🚀 About to call authController.login...");
+    print("📧 Email being sent: '${emailController.text.trim()}'");
+    print("🔑 Password being sent: '${passwordController.text.trim().replaceAll(RegExp('.'), '*')}'");
+
     String? result = await authController.login(
       emailController.text.trim(),
       passwordController.text.trim(),
     );
 
+    print("📨 AUTH CONTROLLER RETURNED: '$result'");
+
     setState(() {
       isLoading = false;
     });
 
+    print("🔍 Login result: $result"); // Debug log
+    print("🔍 Result type: ${result.runtimeType}"); // Debug log
+    print("🔍 Result length: ${result?.length ?? 'null'}"); // Debug log
+
     if (result == "success") {
+      print("✅ Login successful, navigating to main menu");
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => MainMenu()),
       );
     } else {
+      print("❌ Login failed, showing error: $result");
+      print("❌ Error message will be displayed to user: $result");
       setState(() {
         errorMessage = result ?? "Login failed. Please try again.";
       });
@@ -118,45 +139,42 @@ class _LoginPageState extends State<LoginPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
                   children: [
-                    TextField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: "Student email",
-                        prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                    _buildTextField(
+                      "Student email",
+                      Icons.email,
+                      emailController,
+                      keyboardType: TextInputType.emailAddress,
                     ),
                     SizedBox(height: 16),
 
-                    TextField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
-                        suffixIcon: TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            "Forgot?",
-                            style: TextStyle(color: AppColors.primaryColor),
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
+                    _buildPasswordField(),
                     SizedBox(height: 16),
 
                     if (errorMessage.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          errorMessage,
-                          style: TextStyle(color: Colors.red, fontSize: 14),
-                          textAlign: TextAlign.center,
+                        child: Column(
+                          children: [
+                            Text(
+                              errorMessage,
+                              style: TextStyle(color: Colors.red, fontSize: 14),
+                              textAlign: TextAlign.center,
+                            ),
+                            // Debug info in development mode
+                            if (const bool.fromEnvironment('dart.vm.product') == false)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  "Debug: Check console for detailed error info",
+                                  style: TextStyle(
+                                    color: Colors.grey[600], 
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
 
@@ -178,7 +196,7 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => StudentSignupPage()),
+                          MaterialPageRoute(builder: (context) => MultiStepSignupPage()),
                         );
                       },
                       child: Text.rich(
@@ -187,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
                           style: AppTextStyles.body,
                           children: [
                             TextSpan(
-                              text: "Register",
+                              text: "Register now",
                               style: TextStyle(
                                 color: AppColors.primaryColor,
                                 fontWeight: FontWeight.bold,
@@ -197,11 +215,131 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
+                    SizedBox(height: 8),
+
+                    // Centered compact forgot-password button placed below Register
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryColor,
+                          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          minimumSize: Size(0, 0),
+                        ),
+                        child: Text(
+                          "Forgot password?",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryColor,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+
                     SizedBox(height: 30),
                   ],
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: passwordController,
+        obscureText: !_isPasswordVisible,
+        decoration: InputDecoration(
+          labelText: "Password",
+          prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
+          suffixIcon: IconButton(
+            icon: Icon(
+              _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+              color: AppColors.primaryColor,
+            ),
+            onPressed: () {
+              setState(() {
+                _isPasswordVisible = !_isPasswordVisible;
+              });
+            },
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    IconData icon,
+    TextEditingController controller, {
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+    String? helperText,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helperText,
+          prefixIcon: Icon(icon, color: AppColors.primaryColor),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
           ),
         ),
       ),

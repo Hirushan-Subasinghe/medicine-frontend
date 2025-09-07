@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../controllers/map_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../../models/place_model.dart';
 import '../../services/map_service.dart';
 
@@ -60,8 +61,18 @@ class _MapTabState extends State<MapTab> {
     _searchController.addListener(_onSearchChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final token = '';
-      await context.read<MapController>().loadPlaces(token);
+      try {
+        final authController = AuthController();
+        final token = await authController.getCurrentUserToken();
+        
+        if (token != null) {
+          await context.read<MapController>().loadPlaces(token);
+        } else {
+          debugPrint('No authentication token available');
+        }
+      } catch (e) {
+        debugPrint('Error loading places: $e');
+      }
     });
   }
 
@@ -107,6 +118,10 @@ class _MapTabState extends State<MapTab> {
     });
 
     try {
+      // Get auth token first
+      final authController = AuthController();
+      final token = await authController.getCurrentUserToken();
+      
       // 1. First get suggestions from local custom places
       final mapCtrl = context.read<MapController>();
       final localResults = mapCtrl.searchPlaces(query);
@@ -120,7 +135,24 @@ class _MapTabState extends State<MapTab> {
           )
       ).toList();
 
-      // 2. Then fetch from Nominatim for other places in the area
+      // 2. If no local results and we have a token, try backend search
+      if (suggestions.isEmpty && token != null) {
+        try {
+          final backendResults = await mapCtrl.searchPlacesFromBackend(query, token);
+          suggestions.addAll(backendResults.map((place) =>
+              SearchSuggestion(
+                name: place.name,
+                description: place.description,
+                location: latlng.LatLng(place.latitude, place.longitude),
+                isCustomPlace: true,
+              )
+          ).toList());
+        } catch (e) {
+          debugPrint('Backend search failed: $e');
+        }
+      }
+
+      // 3. Then fetch from Nominatim for other places in the area
       if (query.length >= 3) {  // Only query external API if query is substantial
         final nominatimResults = await _fetchNominatimSuggestions(query);
         suggestions.addAll(nominatimResults);

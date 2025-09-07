@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 import '../../controllers/auth_controller.dart';
 import 'login_page.dart';
-import 'otp_verification_page.dart'; // << Add this
+// import 'otp_verification_page.dart'; // Temporarily commented out for testing 
 
 class StudentSignupPage extends StatefulWidget {
   @override
@@ -18,14 +18,14 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController studentNumberController = TextEditingController();
   final TextEditingController phoneNoController = TextEditingController();
+  final TextEditingController academicYearController = TextEditingController();
 
-  String? selectedLevel;
   String? selectedDepartment;
   String? selectedFaculty;
+  int? selectedFacultyId;
 
-  final List<String> levels = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"];
-  List<String> departments = [];
-  List<String> faculties = [];
+  List<Map<String, dynamic>> departments = [];
+  List<Map<String, dynamic>> faculties = [];
 
   String errorMessage = "";
   bool isLoading = false;
@@ -35,31 +35,115 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   void initState() {
     super.initState();
     fetchDropdownData();
+    // Set default academic year to current year for new students
+    academicYearController.text = DateTime.now().year.toString();
   }
 
   Future<void> fetchDropdownData() async {
     try {
-      final depResponse = await http.get(Uri.parse("$baseUrl/api/common/departments"));
-      final facResponse = await http.get(Uri.parse("$baseUrl/api/common/faculties"));
+      print("🔍 Fetching faculties from: $baseUrl");
+      print("🔍 Faculty URL: $baseUrl/api/common/faculties");
+      
+      // Only fetch faculties initially
+      final facResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/faculties"),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
 
-      if (depResponse.statusCode == 200 && facResponse.statusCode == 200) {
-        final List<dynamic> depData = jsonDecode(depResponse.body);
+      print("📊 Faculty response status: ${facResponse.statusCode}");
+
+      if (facResponse.statusCode == 200) {
+        print("✅ Faculty API call successful");
+        
         final List<dynamic> facData = jsonDecode(facResponse.body);
 
+        print("📋 Raw faculty data length: ${facData.length}");
+        print("📋 First faculty item: ${facData.isNotEmpty ? facData[0] : 'No data'}");
+
         setState(() {
-          departments = depData.map((e) => e['deptName'].toString()).toList();
-          faculties = facData.map((e) => e['facultyName'].toString()).toList();
+          faculties = facData.map((e) => {
+            'facultyId': e['facultyId'],
+            'facultyName': e['facultyName'].toString()
+          }).toList();
         });
 
-        //debug
-        print("Departments: $departments");
-        print("Faculties: $faculties");
+        print("✅ Parsed Faculties (${faculties.length}): $faculties");
 
       } else {
-        print("Failed to load dropdown data");
+        print("❌ Failed to load faculty data");
+        print("❌ Faculty response: ${facResponse.statusCode} - ${facResponse.body}");
+        
+        // Show error message to user
+        setState(() {
+          errorMessage = "Failed to load faculty data. Server responded with status: ${facResponse.statusCode}";
+        });
       }
     } catch (e) {
-      print("Error fetching dropdown data: $e");
+      print("❌ Error fetching faculty data: $e");
+      String errorDetails = "";
+      
+      if (e.toString().contains('SocketException')) {
+        errorDetails = "Network connection failed. Please check if the server is running.";
+      } else if (e.toString().contains('TimeoutException')) {
+        errorDetails = "Request timed out. Please check your internet connection.";
+      } else {
+        errorDetails = "Network error: $e";
+      }
+      
+      setState(() {
+        errorMessage = errorDetails;
+      });
+    }
+  }
+
+  Future<void> fetchDepartmentsByFaculty(int facultyId) async {
+    try {
+      print("🔍 Fetching departments for faculty $facultyId from: $baseUrl");
+      print("🔍 Department URL: $baseUrl/api/common/faculties/$facultyId/departments");
+      
+      final depResponse = await http.get(
+        Uri.parse("$baseUrl/api/common/faculties/$facultyId/departments"),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
+
+      print("📊 Department response status: ${depResponse.statusCode}");
+
+      if (depResponse.statusCode == 200) {
+        print("✅ Department API call successful");
+        
+        final List<dynamic> depData = jsonDecode(depResponse.body);
+
+        print("📋 Raw department data length: ${depData.length}");
+        print("📋 First department item: ${depData.isNotEmpty ? depData[0] : 'No data'}");
+
+        setState(() {
+          departments = depData.map((e) => {
+            'deptId': e['deptId'],
+            'departmentName': e['departmentName'].toString()
+          }).toList();
+          // Reset department selection when faculty changes
+          selectedDepartment = null;
+        });
+
+        print("✅ Parsed Departments (${departments.length}): $departments");
+
+      } else {
+        print("❌ Failed to load department data");
+        print("❌ Department response: ${depResponse.statusCode} - ${depResponse.body}");
+        
+        setState(() {
+          departments = [];
+          selectedDepartment = null;
+          errorMessage = "Failed to load departments for selected faculty.";
+        });
+      }
+    } catch (e) {
+      print("❌ Error fetching department data: $e");
+      setState(() {
+        departments = [];
+        selectedDepartment = null;
+        errorMessage = "Error loading departments: $e";
+      });
     }
   }
 
@@ -70,6 +154,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     });
 
     final email = emailController.text.trim();
+    final academicYear = academicYearController.text.trim();
 
     // ✅ Check for empty fields
     if (firstNameController.text.trim().isEmpty ||
@@ -80,7 +165,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         selectedDepartment == null ||
         selectedFaculty == null ||
         phoneNoController.text.trim().isEmpty ||
-        selectedLevel == null) {
+        academicYear.isEmpty) {
       setState(() {
         errorMessage = "All fields are required.";
         isLoading = false;
@@ -88,15 +173,83 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       return;
     }
 
-    // ✅ Enforce university email restriction
-    if (!email.endsWith('@stu.kln.ac.lk')) {
+    // Validate academic year
+    final int? year = int.tryParse(academicYear);
+    final int currentYear = DateTime.now().year;
+    if (year == null || year < (currentYear - 6) || year > currentYear) {
       setState(() {
-        errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
+        errorMessage = "Please enter a valid academic year (${currentYear-6} to $currentYear)";
         isLoading = false;
       });
       return;
     }
 
+    // TEMPORARILY BYPASS OTP FOR TESTING
+    // ✅ Enforce university email restriction
+    // if (!email.endsWith('@stu.kln.ac.lk')) {
+    //   setState(() {
+    //     errorMessage = "Only university emails (@stu.kln.ac.lk) are allowed.";
+    //     isLoading = false;
+    //   });
+    //   return;
+    // }
+
+    // SKIP OTP VERIFICATION FOR TESTING - DIRECTLY CREATE ACCOUNT
+    final signupData = {
+      "firstName": firstNameController.text.trim(),
+      "lastName": lastNameController.text.trim(),
+      "email": email,
+      "password": passwordController.text.trim(),
+      "studentNumber": studentNumberController.text.trim(),
+      "studentAcademicYear": academicYear, // Changed to use academic year instead of level
+      "department": selectedDepartment!,
+      "faculty": selectedFaculty!,
+      "phoneNo": phoneNoController.text.trim()
+    };
+
+    // Directly call signup without OTP verification
+    try {
+      final result = await authController.directSignupForTesting(signupData);
+      
+      setState(() {
+        isLoading = false;
+      });
+      
+      if (result == "success") {
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Success"),
+            content: const Text("Your account has been created successfully!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginPage()),
+                  );
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        setState(() {
+          errorMessage = result ?? "Signup failed.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = "Signup failed: ${e.toString()}";
+      });
+    }
+
+    // OLD OTP CODE (COMMENTED OUT FOR TESTING)
+    /*
     // ✅ Send OTP
     final otpResponse = await authController.sendOtp(email);
 
@@ -105,18 +258,6 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
     });
 
     if (otpResponse['success']) {
-      final signupData = {
-        "firstName": firstNameController.text.trim(),
-        "lastName": lastNameController.text.trim(),
-        "email": email,
-        "password": passwordController.text.trim(),
-        "studentNumber": studentNumberController.text.trim(),
-        "studentLevel": selectedLevel!,
-        "department": selectedDepartment!,
-        "faculty": selectedFaculty!,
-        "phoneNo": phoneNoController.text.trim()
-      };
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -131,8 +272,8 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
         errorMessage = otpResponse['error'] ?? "Failed to send OTP.";
       });
     }
+    */
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -173,56 +314,20 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
               buildTextField("Email", Icons.email, emailController),
               SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: "Level",
-                  prefixIcon: Icon(Icons.school, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                value: selectedLevel,
-                items: levels.map((level) => DropdownMenuItem(value: level, child: Text(level))).toList(),
-                onChanged: (value) => setState(() => selectedLevel = value),
+              // Academic Year field instead of Level dropdown
+              buildTextField(
+                "Academic Year (Batch Year)", 
+                Icons.calendar_today, 
+                academicYearController,
+                isNumeric: true,
+                helperText: "Enter the year you started at the university"
               ),
               SizedBox(height: 16),
 
               buildTextField("Student Number", Icons.badge, studentNumberController),
               SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: "Department",
-                  prefixIcon: Icon(Icons.business, color: AppColors.primaryColor),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                value: selectedDepartment,
-                items: departments.isEmpty
-                    ? [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text("No departments available"),
-                  )
-                ]
-                    : departments.map((dep) {
-                  return DropdownMenuItem(
-                    value: dep,
-                    child: Text(dep),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedDepartment = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please select a department";
-                  }
-                  return null;
-                },
-              ),
-
-              SizedBox(height: 16),
-
+              // Faculty dropdown - now appears first
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: "Faculty",
@@ -232,25 +337,87 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                 value: selectedFaculty,
                 items: faculties.isEmpty
                     ? [
-                  DropdownMenuItem(
+                  DropdownMenuItem<String>(
                     value: null,
                     child: Text("No faculties available"),
                   )
                 ]
                     : faculties.map((fac) {
-                  return DropdownMenuItem(
-                    value: fac,
-                    child: Text(fac),
+                  return DropdownMenuItem<String>(
+                    value: fac['facultyName'],
+                    child: Text(fac['facultyName']),
                   );
                 }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     selectedFaculty = value;
+                    selectedDepartment = null; // Reset department selection
+                    departments = []; // Clear departments
+                    errorMessage = ""; // Clear any errors
                   });
+                  
+                  // Find the faculty ID for the selected faculty name
+                  if (value != null) {
+                    final selectedFacultyData = faculties.firstWhere(
+                      (fac) => fac['facultyName'] == value,
+                      orElse: () => {},
+                    );
+                    
+                    if (selectedFacultyData.isNotEmpty) {
+                      selectedFacultyId = selectedFacultyData['facultyId'];
+                      // Fetch departments for this faculty
+                      await fetchDepartmentsByFaculty(selectedFacultyId!);
+                    }
+                  }
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return "Please select a faculty";
+                  }
+                  return null;
+                },
+              ),
+
+              SizedBox(height: 16),
+
+              // Department dropdown - now filtered by faculty
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: selectedFaculty == null 
+                      ? "Department (Select Faculty First)" 
+                      : "Department",
+                  prefixIcon: Icon(Icons.business, color: AppColors.primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                value: selectedDepartment,
+                items: selectedFaculty == null
+                    ? [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text("Please select a faculty first"),
+                  )
+                ]
+                    : departments.isEmpty
+                        ? [
+                      DropdownMenuItem<String>(
+                        value: null,
+                        child: Text("No departments available"),
+                      )
+                    ]
+                        : departments.map((dep) {
+                      return DropdownMenuItem<String>(
+                        value: dep['departmentName'],
+                        child: Text(dep['departmentName']),
+                      );
+                    }).toList(),
+                onChanged: selectedFaculty == null ? null : (value) {
+                  setState(() {
+                    selectedDepartment = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please select a department";
                   }
                   return null;
                 },
@@ -284,7 +451,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
                   ),
                   child: isLoading
                       ? CircularProgressIndicator(color: Colors.white)
-                      : Text("Sign Up", style: AppTextStyles.button),
+                      : Text("Create Account (Testing Mode)", style: AppTextStyles.button),
                 ),
               ),
               SizedBox(height: 24),
@@ -323,13 +490,18 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   }
 
   Widget buildTextField(String label, IconData icon, TextEditingController controller,
-      {bool isPassword = false, bool isPhone = false}) {
+      {bool isPassword = false, bool isPhone = false, bool isNumeric = false, String? helperText}) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
-      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      keyboardType: isNumeric 
+          ? TextInputType.number 
+          : isPhone 
+              ? TextInputType.phone 
+              : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helperText,
         prefixIcon: Icon(icon, color: AppColors.primaryColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
