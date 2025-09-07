@@ -12,18 +12,35 @@ class AuthController {
 
   /// 🔹 User Login Function — Fixed for PigeonUserDetails and endpoint issues
   Future<String?> login(String email, String password) async {
+    print("🚀🚀🚀 AUTH CONTROLLER LOGIN METHOD CALLED! 🚀🚀🚀");
+    print("📧 Input Email: '$email'");
+    print("🔑 Input Password: '${password.replaceAll(RegExp('.'), '*')}'");
+    
     try {
       if (email.isEmpty || password.isEmpty) {
+        print("❌ Empty fields detected");
         return "Email and password fields cannot be empty.";
       }
 
+      // 📧 Check email format BEFORE sending to Firebase
+      if (!_isValidEmail(email)) {
+        print("❌ Invalid email format detected: $email");
+        print("✅ Returning email format error message");
+        return "📧 Please enter a valid email address (e.g., user@example.com).";
+      }
+
+      print("✅ Email format is valid, proceeding with Firebase...");
       print("🚀 Attempting Firebase login...");
+      print("📧 Email: $email");
+      print("🔑 Password length: ${password.length}");
       
       // First, sign out any existing user to prevent potential conflicts
       await _auth.signOut();
       
       // Add delay to ensure signOut completes
       await Future.delayed(Duration(milliseconds: 500));
+      
+      print("🔄 Attempting signInWithEmailAndPassword...");
       
       // Now attempt login
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -32,6 +49,8 @@ class AuthController {
       );
 
       print("✅ Firebase login successful! User: ${userCredential.user?.uid}");
+      print("📧 User email: ${userCredential.user?.email}");
+      print("🔐 User verified: ${userCredential.user?.emailVerified}");
 
       // Since we got here, Firebase auth was successful, so we can just return success
       // This bypasses the problematic PigeonUserDetails issue
@@ -39,12 +58,19 @@ class AuthController {
       
     } on FirebaseAuthException catch (e) {
       print("❌ FirebaseAuthException: ${e.code}");
-      return getFirebaseErrorMessage(e.code);
+      print("❌ Firebase Error Message: ${e.message}");
+      print("❌ Full Firebase Error: $e");
+      
+      String userFriendlyMessage = getFirebaseErrorMessage(e.code);
+      print("✅ User will see: $userFriendlyMessage");
+      
+      return userFriendlyMessage;
     } on SocketException {
       print("❌ No internet connection.");
       return "No internet connection. Please check your network and try again.";
     } catch (e) {
       print("❌ General Error: $e");
+      print("❌ Error Type: ${e.runtimeType}");
       
       // Special handling for PigeonUserDetails error
       if (e.toString().contains('PigeonUserDetails')) {
@@ -57,7 +83,26 @@ class AuthController {
         }
       }
       
-      return "Login failed. Please try again.";
+      // Check if the error contains specific Firebase error patterns
+      String errorString = e.toString().toLowerCase();
+      String userMessage;
+      
+      if (errorString.contains('wrong-password') || errorString.contains('invalid-credential')) {
+        userMessage = "🔑 PATTERN: The password you entered is incorrect. Please try again.";
+      } else if (errorString.contains('user-not-found') || errorString.contains('email-not-found')) {
+        userMessage = "📧 PATTERN: No account found with this email address. Please check your email or register first.";
+      } else if (errorString.contains('invalid-email')) {
+        userMessage = "📧 PATTERN: Please enter a valid email address (e.g., user@example.com).";
+      } else if (errorString.contains('too-many-requests')) {
+        userMessage = "⏰ PATTERN: Too many failed login attempts. Please try again later.";
+      } else if (errorString.contains('network-request-failed') || errorString.contains('network')) {
+        userMessage = "🌐 PATTERN: Network error. Please check your internet connection and try again.";
+      } else {
+        userMessage = "❓ GENERAL: Login failed. Please check your credentials and try again.";
+      }
+      
+      print("✅ User will see: $userMessage");
+      return userMessage;
     }
   }
   
@@ -165,26 +210,56 @@ class AuthController {
   /// 🔥 Firebase Error Code Translator
   String getFirebaseErrorMessage(String errorCode) {
     switch (errorCode) {
+      // Login-related errors
       case "INVALID_LOGIN_CREDENTIALS":
+      case "invalid-login-credentials":
       case "wrong-password":
-        return "The password you entered is incorrect. Please try again.";
+      case "invalid-credential":
+        return "🔑 The password you entered is incorrect. Please try again.";
       case "EMAIL_NOT_FOUND":
+      case "email-not-found":
       case "user-not-found":
-        return "No account found with this email. Please register first.";
+        return "📧 No account found with this email address. Please check your email or register first.";
       case "invalid-email":
-        return "Invalid email format. Please enter a valid email address.";
+        return "📧 Please enter a valid email address (e.g., user@example.com).";
+      case "user-disabled":
+        return "🚫 This account has been disabled. Please contact support.";
       case "too-many-requests":
-        return "Too many failed login attempts. Try again later.";
+        return "⏰ Too many failed login attempts. Please try again later.";
+      
+      // Network-related errors
       case "NETWORK_REQUEST_FAILED":
-        return "Network error. Please check your connection.";
+      case "network-request-failed":
+        return "🌐 Network error. Please check your internet connection and try again.";
+      
+      // Signup-related errors
       case "WEAK_PASSWORD":
-        return "Password is too weak. Please use a stronger password.";
+      case "weak-password":
+        return "🔒 Password is too weak. Please use a stronger password.";
       case "EMAIL_EXISTS":
-        return "This email is already in use. Try logging in instead.";
+      case "email-already-in-use":
+        return "📧 This email is already in use. Try logging in instead.";
       case "OPERATION_NOT_ALLOWED":
-        return "This operation is not allowed. Please contact support.";
+      case "operation-not-allowed":
+        return "🚫 This operation is not allowed. Please contact support.";
+      
+      // General errors
+      case "internal-error":
+        return "⚠️ An internal error occurred. Please try again later.";
+      case "quota-exceeded":
+        return "📊 Service temporarily unavailable. Please try again later.";
+      case "app-not-authorized":
+        return "🔐 App not authorized to use Firebase Authentication.";
+      case "keychain-error":
+        return "🔑 Keychain error occurred. Please try again.";
+      case "missing-email":
+        return "📧 Please enter your email address.";
+      case "invalid-api-key":
+        return "🔑 Invalid API key. Please contact support.";
+      
       default:
-        return "Login failed. Please check your credentials and try again.";
+        print("🚨 Unknown Firebase error code: $errorCode");
+        return "🔥 FIREBASE ERROR: Login failed. Please check your credentials and try again.";
     }
   }
 
@@ -782,6 +857,15 @@ Future<Map<String, dynamic>> changePassword(String currentPassword, String newPa
       print("⚠️ General signup error: $e");
       return "Signup error: $e";
     }
+  }
+
+  /// 📧 Email validation helper method
+  bool _isValidEmail(String email) {
+    // Basic email regex pattern
+    final RegExp emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    );
+    return emailRegex.hasMatch(email);
   }
 }
 
