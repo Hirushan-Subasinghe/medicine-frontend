@@ -4,13 +4,13 @@ import 'dart:io';
 // Dynamic base URL based on platform and environment
 String get baseUrl {
   if (Platform.isAndroid) {
-    // For Android emulator
-    return "http://10.0.2.2:5002";
+    // For Android emulator and real devices - use your computer's IP
+    return "http://192.168.56.1:5002";
   } else if (Platform.isIOS) {
-    // For iOS simulator
-    return "http://localhost:5002";
+    // For iOS simulator and real devices - use your computer's IP
+    return "http://192.168.56.1:5002";
   } else {
-    // For web or other platforms
+    // For web or other platforms - use localhost
     return "http://localhost:5002";
   }
 }

@@ -26,9 +26,15 @@ class NotificationController {
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
         print('Notifications API response: ${data.length} notifications received');
-        // Log the first notification if exists
+        // Log the first few notifications with sender info
         if (data.isNotEmpty) {
           print('First notification: ${data[0]['title']} (ID: ${data[0]['notificationId']})');
+          print('Sender: ${data[0]['senderName']} (${data[0]['senderEmail']})');
+          
+          // Log all notifications for debugging
+          for (int i = 0; i < data.length && i < 5; i++) {
+            print('Notification ${i + 1}: ${data[i]['title']} - Sender: ${data[i]['senderName']}');
+          }
         }
         return data.map((item) => NotificationModel.fromJson(item)).toList();
       } else {
