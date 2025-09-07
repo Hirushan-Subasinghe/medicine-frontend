@@ -14,6 +14,18 @@ String get baseUrl {
     return "http://localhost:5002";
   }
 }
+seUrl {
+//   if (Platform.isAndroid) {
+//     // For Android emulator and real devices - use your computer's IP
+//     return "https://freshersconnect.app/api/";
+//   } else if (Platform.isIOS) {
+//     // For iOS simulator and real devices - use your computer's IP
+//     return "https://freshersconnect.app/api/";
+//   } else {
+//     // For web or other platforms - use localhost
+//     return "https://freshersconnect.app/api/";
+//   }
+// }
 
 class AppColors {
   static const Color primaryColor = Color(0xFF2C5DE1);
